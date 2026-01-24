@@ -18,6 +18,30 @@ I explore how arithmetic structures generate dynamics, time, and form — from c
 
 ---
 
+## 🧪 J‑TWIST Messenger  
+**Soubor:** `scripts/j_twist_messenger.py`
+
+This script implements a numerical exploration of a **geometric ansatz** built on:
+
+- the golden ratio \(\varphi\),  
+- the cyclotomic unit \(J = 1 + \zeta_5^2\),  
+- and several derived dimensionless quantities.
+
+It computes:
+
+- an effective fine‑structure–like constant,  
+- a geometric audit (“gap”) between pure ratios and reference values,  
+- a WEP‑like κ parameter,  
+- and, when `mpmath` is available, a dilogarithmic parity test.
+
+The code is designed as a **reproducible numerical probe** of the TWIST ansatz and a starting point for further analysis.
+
+### ▶️ Run it with:
+
+```bash
+python scripts/j_twist_messenger.py
+```
+
 ## 📘 Selected Work
 
 ### **The Plenum: A New Vacuum**  
