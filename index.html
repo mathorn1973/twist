@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>TWIST | Kernel + Pole + Náboj + Tlak + Čas</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body{
+    background:#06060a; color:#8a8a8a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    height:100vh; overflow:hidden;
+    overscroll-behavior:none; touch-action:none;
+  }
+  .top{
+    height:44px; display:flex; align-items:baseline; gap:18px;
+    padding:10px 16px; border-bottom:1px solid #141418; background:#06060a;
+  }
+  .top .t{ color:#00d2ff; letter-spacing:3px; font-size:12px; }
+  .top .a{ color:#4a4a4a; font-size:11px; }
+  .wrap{ position:relative; width:100%; height:calc(100vh - 44px); }
+  canvas{ width:100%; height:100%; display:block; cursor:crosshair; touch-action:none; }
+  .hud{
+    position:absolute; top:14px; right:14px;
+    font-size:11px; text-align:right; color:#4a4a4a; pointer-events:none;
+  }
+  .hud .v{ color:#00d2ff; }
+  .panel{
+    position:absolute; left:14px; bottom:14px;
+    display:flex; flex-direction:column; gap:10px; pointer-events:none;
+  }
+  .row{
+    pointer-events:auto; display:flex; gap:10px; align-items:center;
+    padding:6px 10px; border:1px solid #1e1e28;
+    background:rgba(6,6,10,0.78); border-radius:6px;
+  }
+  .row.disabled{ opacity:0.35; }
+  label{ width:130px; font-size:10px; color:#666; }
+  label small{ color:#555; font-size:9px; }
+  button small{ color:#777; font-size:9px; }
+  .tog small{ color:#666; }
+  input[type=range]{ width:210px; }
+  .tog{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    font-size:11px; color:#8a8a8a;
+  }
+  .tog label{
+    width:auto; color:#8a8a8a; font-size:11px;
+    display:flex; align-items:center; gap:6px;
+    cursor:pointer; user-select:none;
+  }
+  .tog input{ cursor:pointer; }
+  button{
+    pointer-events:auto; background:#0b0b12; color:#9a9a9a;
+    border:1px solid #1e1e28; padding:6px 10px; border-radius:6px;
+    cursor:pointer; font-size:11px;
+  }
+  button:hover{ border-color:#2a2a36; color:#cfcfcf; }
+  input:disabled{ cursor:not-allowed; }
+  .help-overlay{
+    display:none; position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(6,6,10,0.94); border:1px solid #1e1e28;
+    border-radius:8px; padding:18px 24px;
+    font-size:11px; color:#8a8a8a; pointer-events:auto;
+    max-height:80vh; overflow-y:auto; z-index:10;
+    min-width:320px;
+  }
+  .help-overlay.show{ display:block; }
+  .help-overlay h3{ color:#00d2ff; font-size:12px; margin:10px 0 6px; letter-spacing:2px; }
+  .help-overlay h3:first-child{ margin-top:0; }
+  .help-overlay .krow{ display:flex; justify-content:space-between; padding:2px 0; }
+  .help-overlay .kk{ color:#00d2ff; min-width:90px; }
+  .help-hint{
+    position:absolute; bottom:14px; right:14px;
+    font-size:10px; color:#444; pointer-events:none;
+  }
+  .ui-hidden .top,
+  .ui-hidden .hud,
+  .ui-hidden .panel,
+  .ui-hidden .help-hint,
+  .ui-hidden .help-overlay{ display:none !important; }
+  .ui-hidden .wrap{ height:100vh; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="t">TWIST // KERNEL + POLE + NÁBOJ + TLAK + ČAS</div>
+    <div class="a">
+      JÁDRO: z=Tr(x), t=TM(n), i=(z+2t) mod 5, x←gᵢ(x).
+      POLE: gyron → hmota(R), d/e → náboj(G/B). ∇ρL = gravitace, -∇ρS = tlak, Q·∇(G-B) = náboj.
+      ČAS: N=1/(1+K·ρ). POHON: gyron kopanec. MYŠ: odpuz / tahni.
+      KOLEČKO: zoom. SHIFT+KOLEČKO: rotace. DOTYK: 1prst=myš, 2prsty=zoom+rotace.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <canvas id="c"></canvas>
+
+    <div class="hud">
+      <div>ČÁSTICE <span class="v" id="pc">0</span></div>
+      <div>FPS <span class="v" id="fps">0</span></div>
+      <div>TM <span class="v" id="tm">0</span></div>
+      <div>ROT <span class="v" id="rotv">0</span>°</div>
+    </div>
+
+    <div class="panel">
+      <div class="row" id="rowModules">
+        <label>MODULY</label>
+        <div class="tog">
+          <label><input type="checkbox" id="tglKernel" checked>JÁDRO <small>(1)</small></label>
+          <label><input type="checkbox" id="tglField"  checked>POLE <small>(2)</small></label>
+          <label><input type="checkbox" id="tglMouse"  checked>MYŠ <small>(3)</small></label>
+          <label><input type="checkbox" id="tglChaos"  checked>CHAOS <small>(4)</small></label>
+          <label><input type="checkbox" id="tglPump">POHON <small>(5)</small></label>
+        </div>
+      </div>
+
+      <div class="row" id="rowMouseMode">
+        <label>MYŠ REŽIM <small>(M)</small></label>
+        <div class="tog">
+          <label><input type="radio" name="mouseMode" id="mouseRepel" checked>ODPUZ</label>
+          <label><input type="radio" name="mouseMode" id="mouseAttract">TAHNI</label>
+        </div>
+      </div>
+
+      <div class="row" id="rowParticles">
+        <label>ČÁSTICE <small>(P/N)</small></label>
+        <input id="particles" type="range" min="14" max="23" step="1" value="20" />
+      </div>
+
+      <div class="row" id="rowDamping">
+        <label>TLUMENÍ <small>([ ])</small></label>
+        <input id="damping" type="range" min="0.80" max="0.999" step="0.001" value="0.92" />
+      </div>
+
+      <div class="row" id="rowForce">
+        <label>SÍLA IFS <small>(; ')</small></label>
+        <input id="force" type="range" min="0.001" max="0.12" step="0.001" value="0.02" />
+      </div>
+
+      <div class="row" id="rowChaos">
+        <label>CHAOS <small>(Z X)</small></label>
+        <input id="chaos" type="range" min="0.0" max="1.0" step="0.01" value="0.0" />
+      </div>
+
+      <div class="row" id="rowFade">
+        <label>STOPA <small>(I K)</small></label>
+        <input id="fade" type="range" min="0.85" max="0.995" step="0.001" value="0.94" />
+      </div>
+
+      <div class="row" id="rowScale">
+        <label>MĚŘÍTKO <small>(+ −)</small></label>
+        <input id="scale" type="range" min="0.10" max="3.0" step="0.01" value="0.62" />
+      </div>
+
+      <div class="row" id="rowSpin">
+        <label>ROTACE <small>(← →)</small></label>
+        <input id="spin" type="range" min="-0.020" max="0.020" step="0.001" value="0.000" />
+      </div>
+
+      <div class="row" id="rowFieldFade">
+        <label>POLE FADE <small>(O L)</small></label>
+        <input id="ffield" type="range" min="0.80" max="0.995" step="0.001" value="0.96" />
+      </div>
+
+      <div class="row" id="rowDeposit">
+        <label>VKLAD <small>(F V)</small></label>
+        <input id="deposit" type="range" min="0.000" max="0.030" step="0.001" value="0.010" />
+      </div>
+
+      <div class="row" id="rowGrav">
+        <label>GRAVITACE <small>(↑ ↓)</small></label>
+        <input id="grav" type="range" min="0.000" max="0.080" step="0.001" value="0.020" />
+      </div>
+
+      <div class="row" id="rowPressure">
+        <label>TLAK <small>(, .)</small></label>
+        <input id="pressure" type="range" min="0.000" max="0.200" step="0.001" value="0.040" />
+      </div>
+
+      <div class="row" id="rowTimeK">
+        <label>ČAS K <small>(W S)</small></label>
+        <input id="timeK" type="range" min="0" max="40" step="1" value="10" />
+      </div>
+
+      <div class="row" id="rowTimeMin">
+        <label>ČAS MIN <small>(E D)</small></label>
+        <input id="timeMin" type="range" min="0.05" max="1.00" step="0.01" value="0.15" />
+      </div>
+
+      <div class="row" id="rowCharge">
+        <label>NÁBOJ <small>(Q A)</small></label>
+        <input id="charge" type="range" min="0.000" max="0.100" step="0.001" value="0.020" />
+      </div>
+
+      <div class="row" id="rowPump">
+        <label>POHON <small>(T G)</small></label>
+        <input id="pump" type="range" min="0.000" max="0.030" step="0.001" value="0.010" />
+      </div>
+
+      <div style="display:flex; gap:10px; pointer-events:auto;">
+        <button id="reset">RESET <small>(R)</small></button>
+        <button id="pause">PAUZA <small>(SPC)</small></button>
+      </div>
+    </div>
+
+    <div class="help-overlay" id="helpOverlay">
+      <h3>PŘEPÍNAČE</h3>
+      <div class="krow"><span class="kk">SPACE</span><span>pauza / pokračovat</span></div>
+      <div class="krow"><span class="kk">R</span><span>reset</span></div>
+      <div class="krow"><span class="kk">1</span><span>JÁDRO on/off</span></div>
+      <div class="krow"><span class="kk">2</span><span>POLE on/off</span></div>
+      <div class="krow"><span class="kk">3</span><span>MYŠ on/off</span></div>
+      <div class="krow"><span class="kk">4</span><span>CHAOS on/off</span></div>
+      <div class="krow"><span class="kk">5</span><span>POHON on/off</span></div>
+      <div class="krow"><span class="kk">M</span><span>myš: odpuz / tahni</span></div>
+      <div class="krow"><span class="kk">P / N</span><span>více / méně částic</span></div>
+      <h3>KAMERA</h3>
+      <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
+      <div class="krow"><span class="kk">← / →</span><span>rotace (auto-spin)</span></div>
+      <div class="krow"><span class="kk">0</span><span>reset rotace + spin</span></div>
+      <h3>FYZIKA</h3>
+      <div class="krow"><span class="kk">↑ / ↓</span><span>gravitace</span></div>
+      <div class="krow"><span class="kk">[ / ]</span><span>tlumení</span></div>
+      <div class="krow"><span class="kk">; / '</span><span>síla IFS</span></div>
+      <div class="krow"><span class="kk">, / .</span><span>tlak</span></div>
+      <div class="krow"><span class="kk">Q / A</span><span>náboj</span></div>
+      <div class="krow"><span class="kk">W / S</span><span>čas K</span></div>
+      <div class="krow"><span class="kk">E / D</span><span>čas min</span></div>
+      <div class="krow"><span class="kk">T / G</span><span>pohon (pump)</span></div>
+      <div class="krow"><span class="kk">F / V</span><span>vklad (deposit)</span></div>
+      <div class="krow"><span class="kk">Z / X</span><span>chaos</span></div>
+      <div class="krow"><span class="kk">I / K</span><span>stopa (fade)</span></div>
+      <div class="krow"><span class="kk">O / L</span><span>pole fade</span></div>
+      <h3>NÁPOVĚDA</h3>
+      <div class="krow"><span class="kk">H</span><span>zobrazit / skrýt</span></div>
+      <div class="krow"><span class="kk">U</span><span>skrýt / ukázat vše (čisté plátno)</span></div>
+      <div class="krow"><span class="kk">ESC</span><span>zavřít nápovědu</span></div>
+    </div>
+
+    <div class="help-hint">[H] klávesy  [U] skrýt vše</div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const gl = canvas.getContext('webgl2', { antialias:false, alpha:false });
+  if(!gl){ alert("WebGL2 je nutný."); return; }
+
+  const ext = gl.getExtension('EXT_color_buffer_float');
+  if(!ext){ alert("Chybí EXT_color_buffer_float (float render target)."); return; }
+
+  // =========================
+  // UI (ovládání + šednutí)
+  // =========================
+  const ui = {
+    tglKernel:  document.getElementById('tglKernel'),
+    tglField:   document.getElementById('tglField'),
+    tglMouse:   document.getElementById('tglMouse'),
+    tglChaos:   document.getElementById('tglChaos'),
+    tglPump:    document.getElementById('tglPump'),
+    mouseRepel: document.getElementById('mouseRepel'),
+    mouseAttract: document.getElementById('mouseAttract'),
+
+    damping: document.getElementById('damping'),
+    force:   document.getElementById('force'),
+    chaos:   document.getElementById('chaos'),
+    fade:    document.getElementById('fade'),
+    scale:   document.getElementById('scale'),
+
+    ffield:  document.getElementById('ffield'),
+    deposit: document.getElementById('deposit'),
+    grav:    document.getElementById('grav'),
+    pressure: document.getElementById('pressure'),
+    pump:    document.getElementById('pump'),
+    spin:    document.getElementById('spin'),
+    timeK:   document.getElementById('timeK'),
+    timeMin: document.getElementById('timeMin'),
+    charge:  document.getElementById('charge'),
+    particles: document.getElementById('particles'),
+
+    rowMouseMode: document.getElementById('rowMouseMode'),
+    rowChaos: document.getElementById('rowChaos'),
+    rowFieldFade: document.getElementById('rowFieldFade'),
+    rowDeposit: document.getElementById('rowDeposit'),
+    rowGrav: document.getElementById('rowGrav'),
+    rowPressure: document.getElementById('rowPressure'),
+    rowTimeK: document.getElementById('rowTimeK'),
+    rowTimeMin: document.getElementById('rowTimeMin'),
+    rowCharge: document.getElementById('rowCharge'),
+    rowPump: document.getElementById('rowPump'),
+  };
+
+  function setRowEnabled(rowEl, enabled){
+    rowEl.classList.toggle('disabled', !enabled);
+    rowEl.querySelectorAll('input,select,button').forEach(el => {
+      el.disabled = !enabled;
+    });
+  }
+
+  function syncUI(){
+    const kernelOn = ui.tglKernel.checked;
+    const fieldOn  = ui.tglField.checked;
+    const mouseOn  = ui.tglMouse.checked;
+    const chaosOn  = ui.tglChaos.checked;
+
+    // pohon jen když běží jádro
+    if(!kernelOn){
+      ui.tglPump.checked = false;
+      ui.tglPump.disabled = true;
+    } else {
+      ui.tglPump.disabled = false;
+    }
+    const pumpOn = ui.tglPump.checked && kernelOn;
+
+    setRowEnabled(ui.rowMouseMode, mouseOn);
+    setRowEnabled(ui.rowChaos, chaosOn);
+
+    setRowEnabled(ui.rowFieldFade, fieldOn);
+    setRowEnabled(ui.rowDeposit, fieldOn);
+    setRowEnabled(ui.rowGrav, fieldOn);
+    setRowEnabled(ui.rowPressure, fieldOn);
+    setRowEnabled(ui.rowTimeK, fieldOn);
+    setRowEnabled(ui.rowTimeMin, fieldOn);
+    setRowEnabled(ui.rowCharge, fieldOn);
+
+    setRowEnabled(ui.rowPump, pumpOn);
+  }
+
+  [ui.tglKernel, ui.tglField, ui.tglMouse, ui.tglChaos, ui.tglPump,
+   ui.mouseRepel, ui.mouseAttract].forEach(el => {
+    el.addEventListener('change', syncUI);
+  });
+  syncUI();
+
+  // =========================
+  // HUD
+  // =========================
+  const fpsEl = document.getElementById('fps');
+  const tmEl  = document.getElementById('tm');
+  const pcEl  = document.getElementById('pc');
+
+  // =========================
+  // PARAMETRY GPU
+  // =========================
+  // Když je to pomalé: dej 512
+  const TEX_SIZE   = 2304;
+  const N          = TEX_SIZE * TEX_SIZE;  // ~5.3M
+  const FIELD_SIZE = 256;
+
+  pcEl.textContent = N.toLocaleString();
+  let activeN = N;
+
+  // =========================
+  // WebGL pomocné funkce
+  // =========================
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      throw new Error(gl.getShaderInfoLog(s) + "\n\n" + src);
+    }
+    return s;
+  }
+  function program(vsSrc, fsSrc){
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vsSrc));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
+      throw new Error(gl.getProgramInfoLog(p));
+    }
+    return p;
+  }
+  function tex2D(w,h, internalFormat, format, type, filter){
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, null);
+    return t;
+  }
+  function fboMRT(textures){
+    const f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    const bufs = [];
+    for(let i=0;i<textures.length;i++){
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0+i, gl.TEXTURE_2D, textures[i], 0);
+      bufs.push(gl.COLOR_ATTACHMENT0+i);
+    }
+    gl.drawBuffers(bufs);
+    const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if(st !== gl.FRAMEBUFFER_COMPLETE){
+      throw new Error("FBO není kompletní: " + st.toString(16));
+    }
+    return f;
+  }
+  function U(p, name){ return gl.getUniformLocation(p, name); }
+
+  // =========================
+  // SHADERY
+  // =========================
+
+  const VS_QUAD = `#version 300 es
+  layout(location=0) in vec2 a_pos;
+  out vec2 v_uv;
+  void main(){
+    v_uv = a_pos*0.5 + 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+  }`;
+
+  const FS_INIT = `#version 300 es
+  precision highp float;
+  precision highp int;
+  layout(location=0) out vec4 o_state; // pos.xy, vel.zw
+  layout(location=1) out vec4 o_k0;    // p1,p4,p1p,p4p
+  layout(location=2) out vec4 o_k1;    // q,ts,0,0
+  uniform uint u_seed;
+
+  uint hash(uint x){
+    x ^= x >> 16u;
+    x *= 0x7feb352du;
+    x ^= x >> 15u;
+    x *= 0x846ca68bu;
+    x ^= x >> 16u;
+    return x;
+  }
+
+  void main(){
+    uvec2 fc = uvec2(uint(gl_FragCoord.x), uint(gl_FragCoord.y));
+    uint id = fc.y * uint(${TEX_SIZE}) + fc.x;
+    uint h = hash(id ^ (u_seed*747796405u + 2891336453u));
+
+    uint h2 = hash(h);
+    float r  = float(h & 0xFFFFu) / 65535.0;
+    float a  = float(h2 & 0xFFFFu) / 65535.0 * 6.2831853;
+    float rad = sqrt(r) * 1.4;
+    vec2 pos = vec2(cos(a), sin(a)) * rad;
+    vec2 vel = vec2(0.0);
+
+    // init kernel: tady může být % (není to "pravdivá cesta")
+    uint k0 = hash(h2);
+    uint k1 = hash(k0);
+    int p1  = int(k0 % 5u);
+    int p4  = int((k0/5u) % 5u);
+    int p1p = int((k0/25u) % 5u);
+    int p4p = int((k0/125u) % 5u);
+    int q   = int(k1 % 5u);
+    int ts  = int((k1/5u) % 5u);
+
+    o_state = vec4(pos, vel);
+    o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
+    o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+  }`;
+
+  const FS_FADE = `#version 300 es
+  precision highp float;
+  in vec2 v_uv;
+  uniform sampler2D u_prev;
+  uniform float u_fade;
+  out vec4 o_col;
+  void main(){ o_col = texture(u_prev, v_uv) * u_fade; }`;
+
+  const FS_BLIT = `#version 300 es
+  precision highp float;
+  in vec2 v_uv;
+  uniform sampler2D u_tex;
+  out vec4 o_col;
+  void main(){ o_col = texture(u_tex, v_uv); }`;
+
+  const FS_BLUR = `#version 300 es
+  precision highp float;
+  in vec2 v_uv;
+  uniform sampler2D u_tex;
+  uniform vec2 u_dir;
+  out vec4 o_col;
+  void main(){
+    vec4 c = texture(u_tex, v_uv) * 0.382925;
+    c += texture(u_tex, v_uv + u_dir * 1.384615) * 0.241732;
+    c += texture(u_tex, v_uv - u_dir * 1.384615) * 0.241732;
+    c += texture(u_tex, v_uv + u_dir * 3.230769) * 0.06136;
+    c += texture(u_tex, v_uv - u_dir * 3.230769) * 0.06136;
+    o_col = c;
+  }`;
+
+  // Depozit do pole (hmota + naboj)
+  const VS_POINTS_FIELD = `#version 300 es
+  precision highp float;
+  precision highp int;
+
+  uniform sampler2D u_state;
+  uniform sampler2D u_k0;
+  uniform sampler2D u_k1;
+
+  uniform float u_bounds;
+  uniform int   u_tm;
+  uniform uint  u_frame;
+  uniform float u_deposit;
+  uniform int   u_kernelOn;
+
+  out float v_mass;
+  out float v_qp;   // kladny naboj (d-event)
+  out float v_qm;   // zaporny naboj (e-event)
+
+  uint hash(uint x){
+    x ^= x >> 16u;
+    x *= 0x7feb352du;
+    x ^= x >> 15u;
+    x *= 0x846ca68bu;
+    x ^= x >> 16u;
+    return x;
+  }
+
+  int z_trace6(int p1,int p4,int p1p,int p4p,int q,int ts){
+    int s = p1+p4+p1p+p4p+q+ts;
+    if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5;
+    return s;
+  }
+
+  int idx_map(int z, int tm){
+    int i = (tm==0) ? z : (z+2);
+    return (i>=5) ? (i-5) : i;
+  }
+
+  void main(){
+    int id = gl_VertexID;
+    int yy = id / ${TEX_SIZE};
+    int xx = id - yy * ${TEX_SIZE};
+
+    vec4 st = texelFetch(u_state, ivec2(xx,yy), 0);
+    vec2 pos = st.xy;
+
+    float mass = 0.0;
+    float qp = 0.0;
+    float qm = 0.0;
+
+    if(u_kernelOn == 1){
+      vec4 k0 = texelFetch(u_k0, ivec2(xx,yy), 0);
+      vec4 k1 = texelFetch(u_k1, ivec2(xx,yy), 0);
+      int p1  = int(k0.x + 0.5);
+      int p4  = int(k0.y + 0.5);
+      int p1p = int(k0.z + 0.5);
+      int p4p = int(k0.w + 0.5);
+      int q   = int(k1.x + 0.5);
+      int ts  = int(k1.y + 0.5);
+      int z = z_trace6(p1,p4,p1p,p4p,q,ts);
+      int idx = idx_map(z, u_tm);
+
+      // hmota: gyron (z==4 pri TM==0)
+      if(u_tm == 0 && z == 4) mass = u_deposit;
+
+      // naboj: d/e defekt pri TM==1 (oddeleno od hmoty)
+      if(u_tm == 1){
+        if(idx == 3) qp = u_deposit;
+        if(idx == 4) qm = u_deposit;
+      }
+    } else {
+      uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
+      uint h = hash(uid + u_frame * 1923u);
+      uint k = h % 5u;
+      if(u_tm == 0 && k == 4u) mass = u_deposit;
+      if(u_tm == 1){
+        if(k == 3u) qp = u_deposit;
+        if(k == 4u) qm = u_deposit;
+      }
+    }
+
+    v_mass = mass;
+    v_qp = qp;
+    v_qm = qm;
+    vec2 p = pos / u_bounds;
+    gl_Position = vec4(p, 0.0, 1.0);
+    gl_PointSize = 1.0;
+  }`;
+
+  const FS_FIELD_DEPOSIT = `#version 300 es
+  precision highp float;
+  in float v_mass;
+  in float v_qp;
+  in float v_qm;
+  out vec4 o_col;
+  void main(){ o_col = vec4(v_mass, v_qp, v_qm, 1.0); }`;
+
+  // Krok jádra + obalová fyzika + pole + myš režim + chaos + pohon
+  const FS_PHYS = `#version 300 es
+  precision highp float;
+  precision highp int;
+
+  uniform sampler2D u_state;
+  uniform sampler2D u_k0;
+  uniform sampler2D u_k1;
+
+  uniform sampler2D u_field;
+  uniform sampler2D u_fieldRaw;  // nerozmazane pole (kratsi dosah naboje)
+  uniform vec2  u_fieldTexel;
+
+  uniform int   u_tm;
+  uniform uint  u_frame;
+
+  uniform int   u_kernelOn;
+  uniform int   u_fieldOn;
+  uniform int   u_mouseOn;
+  uniform int   u_chaosOn;
+  uniform int   u_pumpOn;
+
+  uniform float u_grav;
+  uniform float u_pump;
+  uniform float u_charge;    // sila nabojoveho pole
+  uniform float u_pressure;  // kratkodosahovy tlak (tvrde jadro)
+
+  uniform vec2  u_mouse;
+  uniform float u_mouseDown;
+  uniform float u_mouseSign; // +1 odpuz, -1 tahni
+
+  uniform float u_damping;
+  uniform float u_force;
+  uniform float u_chaos;
+  uniform float u_bounds;
+
+  uniform vec2  u_J;
+  uniform vec2  u_ck[5];
+
+  uniform float u_timeK;    // sila dilatace
+  uniform float u_timeMin;  // spodni mez (aby se to nezastavilo)
+
+  layout(location=0) out vec4 o_state;
+  layout(location=1) out vec4 o_k0;
+  layout(location=2) out vec4 o_k1;
+
+  uint hash(uint x){
+    x ^= x >> 16u;
+    x *= 0x7feb352du;
+    x ^= x >> 15u;
+    x *= 0x846ca68bu;
+    x ^= x >> 16u;
+    return x;
+  }
+
+  int add5i(int a,int b){ int s=a+b; return (s>=5)? s-5 : s; }
+  int sub5i(int a,int b){ int s=a-b; return (s<0)? s+5 : s; }
+  int neg5i(int x){ return (x==0)? 0 : 5-x; }
+
+  int z_trace6(int p1,int p4,int p1p,int p4p,int q,int ts){
+    int s = p1+p4+p1p+p4p+q+ts;
+    if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5;
+    return s;
+  }
+
+  int idx_map(int z, int tm){
+    int i = (tm==0) ? z : (z+2);
+    return (i>=5) ? (i-5) : i;
+  }
+
+  vec2 cmul(vec2 a, vec2 b){
+    return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x);
+  }
+
+  float hashf(ivec2 c, int tm){
+    int n = (c.x*73856093) ^ (c.y*19349663) ^ (tm*83492791);
+    n = (n<<13) ^ n;
+    int nn = (n*(n*n*15731 + 789221) + 1376312589);
+    return fract(float(nn) * 0.00000000023283064);
+  }
+
+  void main(){
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+
+    vec4 st = texelFetch(u_state, coord, 0);
+    vec4 k0 = texelFetch(u_k0, coord, 0);
+    vec4 k1 = texelFetch(u_k1, coord, 0);
+
+    vec2 pos = st.xy;
+    vec2 vel = st.zw;
+
+    vec4 ok0 = k0;
+    vec4 ok1 = k1;
+
+    int idx = 0;
+
+    int p1=0,p4=0,p1p=0,p4p=0,q=0,ts=0;
+    int z0=0, q0=0;
+
+    if(u_kernelOn == 1){
+      p1  = int(k0.x + 0.5);
+      p4  = int(k0.y + 0.5);
+      p1p = int(k0.z + 0.5);
+      p4p = int(k0.w + 0.5);
+      q   = int(k1.x + 0.5);
+      ts  = int(k1.y + 0.5);
+
+      z0 = z_trace6(p1,p4,p1p,p4p,q,ts);
+      q0 = q;
+      idx = idx_map(z0, u_tm);
+
+      // SS66 generátory
+      if(idx==0){
+        int tp=p1; p1=p4; p4=tp;
+        tp=p1p; p1p=p4p; p4p=tp;
+      } else if(idx==1){
+        int tp=p1;  p1=neg5i(p1p); p1p=neg5i(tp);
+        tp=p4;      p4=neg5i(p4p); p4p=neg5i(tp);
+        q  = neg5i(q);
+        ts = neg5i(ts);
+      } else if(idx==2){
+        int op1=p1, op4=p4, op1p=p1p, op4p=p4p, ots=ts;
+        p1  = add5i(neg5i(op1p), 2);
+        p4  = add5i(add5i(neg5i(op4p), 1), ots);
+        p1p = add5i(neg5i(op1),  2);
+        p4p = add5i(add5i(neg5i(op4),  1), neg5i(ots));
+        q   = sub5i(1, q);
+        ts  = neg5i(ots);
+      } else if(idx==3){
+        p1  = sub5i(2,p1);  p4  = sub5i(1,p4);
+        p1p = sub5i(3,p1p); p4p = sub5i(4,p4p);
+        q   = sub5i(1,q);   ts  = sub5i(1,ts);
+      } else {
+        p1  = sub5i(2,p1);  p4  = sub5i(1,p4);
+        p1p = sub5i(3,p1p); p4p = sub5i(4,p4p);
+        q   = sub5i(2,q);   ts  = sub5i(1,ts);
+      }
+    } else {
+      // jádro vypnuté: idx = hash
+      uint uid = uint(coord.y) * uint(${TEX_SIZE}) + uint(coord.x);
+      uint h = hash(uid + u_frame * 1923u);
+      idx = int(h % 5u);
+    }
+
+    // IFS cíl
+    vec2 target = u_ck[idx] + cmul(u_J, pos);
+
+    // pružina k cíli
+    vec2 acc = (target - pos) * u_force;
+
+    // pole = hustota + gradient + casova dilatace + naboj
+    float N = 1.0; // tempo casu (1 = volny prostor)
+
+    // naboj castice z idx: d-event=+1, e-event=-1
+    float Q = 0.0;
+    if(idx == 3) Q = 1.0;
+    if(idx == 4) Q = -1.0;
+
+    if(u_fieldOn == 1){
+      vec2 uv = pos / u_bounds * 0.5 + 0.5;
+      uv = clamp(uv, vec2(0.001), vec2(0.999));
+
+      // hmota z rozmazaneho pole (R kanal) -> gravitace + cas
+      float rho = texture(u_field, uv).r;
+
+      // lokalni tempo casu: N = 1/(1 + K*rho)
+      N = 1.0 / (1.0 + u_timeK * rho);
+      N = clamp(N, u_timeMin, 1.0);
+
+      float invN = 1.0 / N;
+
+      // gravitace: pritazlivost z rozmazaneho pole (dlouhy dosah)
+      if(u_grav > 0.0){
+        float fx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0)).r;
+        float fx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0)).r;
+        float fy1 = texture(u_field, uv + vec2(0.0, u_fieldTexel.y)).r;
+        float fy0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y)).r;
+
+        vec2 gradL = vec2(fx1 - fx0, fy1 - fy0);
+        acc += gradL * u_grav * invN;
+      }
+
+      // vzorkuj syrove pole jednou (pro tlak i naboj)
+      vec4 raw_xp = texture(u_fieldRaw, uv + vec2(u_fieldTexel.x, 0.0));
+      vec4 raw_xm = texture(u_fieldRaw, uv - vec2(u_fieldTexel.x, 0.0));
+      vec4 raw_yp = texture(u_fieldRaw, uv + vec2(0.0, u_fieldTexel.y));
+      vec4 raw_ym = texture(u_fieldRaw, uv - vec2(0.0, u_fieldTexel.y));
+
+      // tlak: odpudivost ze syroveho pole (kratky dosah, "tvrde jadro")
+      if(u_pressure > 0.0){
+        vec2 gradS = vec2(raw_xp.r - raw_xm.r, raw_yp.r - raw_ym.r);
+        acc -= gradS * u_pressure * invN;
+      }
+
+      // nabojove pole z nerozmazaneho pole (kratsi dosah)
+      // rhoQ = G - B = kladny - zaporny naboj
+      if(u_charge > 0.0 && abs(Q) > 0.5){
+        float qxp = raw_xp.g - raw_xp.b;
+        float qxm = raw_xm.g - raw_xm.b;
+        float qyp = raw_yp.g - raw_yp.b;
+        float qym = raw_ym.g - raw_ym.b;
+
+        vec2 gradQ = vec2(qxp - qxm, qyp - qym);
+        acc += Q * gradQ * u_charge;
+      }
+    }
+
+    // myš (odpuz / tahni)
+    if(u_mouseOn == 1 && u_mouseDown > 0.5){
+      vec2 md = pos - u_mouse;
+      float d2 = dot(md, md) + 0.002;
+      if(d2 < 0.6){
+        acc += normalize(md) * (0.06 / d2) * u_mouseSign;
+      }
+    }
+
+    // chaos
+    if(u_chaosOn == 1 && u_chaos > 0.0){
+      float h = hashf(coord, u_tm);
+      float ang = h * 6.2831853;
+      acc += vec2(cos(ang), sin(ang)) * (u_chaos * 0.006);
+    }
+
+    // integrace v lokalnim case (dt = N)
+    float dt = N;
+    vel += acc * dt;
+    vel *= mix(1.0, u_damping, dt);
+
+    // pohon: deterministický impuls při gyron (tm==0 && z0==4), směr z q0
+    if(u_kernelOn==1 && u_pumpOn==1 && u_tm==0 && z0==4 && u_pump > 0.0){
+      float ang = 6.2831853 * float(q0) / 5.0;
+      vel += vec2(cos(ang), sin(ang)) * u_pump;
+    }
+
+    pos += vel * dt;
+
+    // hranice
+    if(abs(pos.x) > u_bounds){ pos.x = sign(pos.x) * u_bounds; vel.x *= -0.45; }
+    if(abs(pos.y) > u_bounds){ pos.y = sign(pos.y) * u_bounds; vel.y *= -0.45; }
+
+    o_state = vec4(pos, vel);
+
+    // když kernelOff, necháme kernel stav beze změny
+    if(u_kernelOn == 1){
+      o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
+      o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+    } else {
+      o_k0 = ok0;
+      o_k1 = ok1;
+    }
+  }`;
+
+  // Render bodů
+  const VS_POINTS = `#version 300 es
+  precision highp float;
+  precision highp int;
+
+  uniform sampler2D u_state;
+  uniform sampler2D u_k0;
+  uniform sampler2D u_k1;
+
+  uniform float u_aspect;
+  uniform float u_scale;
+  uniform float u_rot;
+
+  uniform int  u_tm;
+  uniform uint u_frame;
+  uniform int  u_kernelOn;
+
+  out float v_speed;
+  flat out float v_z;
+  flat out float v_gyron;
+
+  uint hash(uint x){
+    x ^= x >> 16u;
+    x *= 0x7feb352du;
+    x ^= x >> 15u;
+    x *= 0x846ca68bu;
+    x ^= x >> 16u;
+    return x;
+  }
+
+  int z_trace6(int p1,int p4,int p1p,int p4p,int q,int ts){
+    int s = p1+p4+p1p+p4p+q+ts;
+    if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5; if(s>=5) s-=5;
+    return s;
+  }
+
+  void main(){
+    int id = gl_VertexID;
+    int yy = id / ${TEX_SIZE};
+    int xx = id - yy * ${TEX_SIZE};
+
+    vec4 st = texelFetch(u_state, ivec2(xx,yy), 0);
+    vec2 pos = st.xy;
+    vec2 vel = st.zw;
+    v_speed = length(vel);
+
+    int z = 1;
+    int idx = 0;
+
+    if(u_kernelOn == 1){
+      vec4 k0 = texelFetch(u_k0, ivec2(xx,yy), 0);
+      vec4 k1 = texelFetch(u_k1, ivec2(xx,yy), 0);
+      int p1  = int(k0.x + 0.5);
+      int p4  = int(k0.y + 0.5);
+      int p1p = int(k0.z + 0.5);
+      int p4p = int(k0.w + 0.5);
+      int q   = int(k1.x + 0.5);
+      int ts  = int(k1.y + 0.5);
+      z = z_trace6(p1,p4,p1p,p4p,q,ts);
+      v_gyron = (u_tm==0 && z==4) ? 1.0 : 0.0;
+    } else {
+      uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
+      uint h = hash(uid + u_frame * 1923u);
+      idx = int(h % 5u);
+      z = (idx==4) ? 4 : 1;
+      v_gyron = (u_tm==0 && idx==4) ? 1.0 : 0.0;
+    }
+
+    v_z = float(z);
+
+    float c = cos(u_rot);
+    float s = sin(u_rot);
+    vec2 rp = vec2(c*pos.x - s*pos.y, s*pos.x + c*pos.y);
+
+    gl_Position = vec4((rp.x / u_aspect) * u_scale, rp.y * u_scale, 0.0, 1.0);
+    gl_PointSize = 1.0;
+  }`;
+
+  const FS_POINTS = `#version 300 es
+  precision highp float;
+  in float v_speed;
+  flat in float v_z;
+  flat in float v_gyron;
+  out vec4 o_col;
+  void main(){
+    float e = clamp(v_speed * 28.0, 0.0, 1.0);
+    vec3 c1 = vec3(0.90, 0.45, 0.10);
+    vec3 c4 = vec3(0.10, 0.85, 1.00);
+    vec3 c = (v_z > 3.5) ? c4 : c1;
+    c = mix(c*0.25, c, e);
+    if(v_gyron > 0.5){
+      c += vec3(1.0, 0.20, 0.85) * 0.65;
+    }
+    o_col = vec4(c, 0.14);
+  }`;
+
+  // =========================
+  // Programy
+  // =========================
+  const progInit      = program(VS_QUAD, FS_INIT);
+  const progPhys      = program(VS_QUAD, FS_PHYS);
+  const progPts       = program(VS_POINTS, FS_POINTS);
+  const progFade      = program(VS_QUAD, FS_FADE);
+  const progBlit      = program(VS_QUAD, FS_BLIT);
+
+  const progFieldFade = program(VS_QUAD, FS_FADE);
+  const progFieldDep  = program(VS_POINTS_FIELD, FS_FIELD_DEPOSIT);
+  const progBlur      = program(VS_QUAD, FS_BLUR);
+
+  // =========================
+  // VAO
+  // =========================
+  const vaoQuad = gl.createVertexArray();
+  gl.bindVertexArray(vaoQuad);
+  const quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  const vaoEmpty = gl.createVertexArray();
+
+  // =========================
+  // Textury částic (ping-pong)
+  // =========================
+  const IFMT = gl.RGBA16F;
+  const FMT  = gl.RGBA;
+  const TYPE = gl.HALF_FLOAT;
+
+  const stateTex = [tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST),
+                    tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST)];
+  const k0Tex    = [tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST),
+                    tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST)];
+  const k1Tex    = [tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST),
+                    tex2D(TEX_SIZE, TEX_SIZE, IFMT, FMT, TYPE, gl.NEAREST)];
+
+  const fboPart = [
+    fboMRT([stateTex[0], k0Tex[0], k1Tex[0]]),
+    fboMRT([stateTex[1], k0Tex[1], k1Tex[1]])
+  ];
+
+  // =========================
+  // Pole (RGBA8) + blur
+  // =========================
+  const fieldTex  = [tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR),
+                     tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR)];
+  const fieldBlur = [tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR),
+                     tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR)];
+  const fieldTemp = tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+
+  const fboField = [fboMRT([fieldTex[0]]), fboMRT([fieldTex[1]])];
+  const fboBlur  = [fboMRT([fieldBlur[0]]), fboMRT([fieldBlur[1]])];
+  const fboTemp  = fboMRT([fieldTemp]);
+
+  function clearFBO(f, w, h){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.viewport(0,0,w,h);
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  function clearField(){
+    clearFBO(fboField[0], FIELD_SIZE, FIELD_SIZE);
+    clearFBO(fboField[1], FIELD_SIZE, FIELD_SIZE);
+    clearFBO(fboBlur[0],  FIELD_SIZE, FIELD_SIZE);
+    clearFBO(fboBlur[1],  FIELD_SIZE, FIELD_SIZE);
+    clearFBO(fboTemp,     FIELD_SIZE, FIELD_SIZE);
+  }
+
+  // =========================
+  // Trail (obraz) ping-pong
+  // =========================
+  let trailTex = [null, null];
+  let trailFbo = [null, null];
+  let trailFlip = 0;
+
+  function makeTrailTargets(w,h){
+    if(trailTex[0]){ gl.deleteTexture(trailTex[0]); gl.deleteTexture(trailTex[1]); }
+    if(trailFbo[0]){ gl.deleteFramebuffer(trailFbo[0]); gl.deleteFramebuffer(trailFbo[1]); }
+
+    trailTex[0] = tex2D(w, h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+    trailTex[1] = tex2D(w, h, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+    trailFbo[0] = fboMRT([trailTex[0]]);
+    trailFbo[1] = fboMRT([trailTex[1]]);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo[0]);
+    gl.viewport(0,0,w,h);
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo[1]);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  // =========================
+  // Uniformy (cache)
+  // =========================
+  const uInit = { seed: U(progInit, 'u_seed') };
+
+  const uPhys = {
+    state: U(progPhys,'u_state'),
+    k0:    U(progPhys,'u_k0'),
+    k1:    U(progPhys,'u_k1'),
+    field: U(progPhys,'u_field'),
+    fieldRaw: U(progPhys,'u_fieldRaw'),
+    fieldTexel: U(progPhys,'u_fieldTexel'),
+
+    tm:    U(progPhys,'u_tm'),
+    frame: U(progPhys,'u_frame'),
+
+    kernelOn: U(progPhys,'u_kernelOn'),
+    fieldOn:  U(progPhys,'u_fieldOn'),
+    mouseOn:  U(progPhys,'u_mouseOn'),
+    chaosOn:  U(progPhys,'u_chaosOn'),
+    pumpOn:   U(progPhys,'u_pumpOn'),
+
+    grav:  U(progPhys,'u_grav'),
+    pump:  U(progPhys,'u_pump'),
+    charge: U(progPhys,'u_charge'),
+    pressure: U(progPhys,'u_pressure'),
+
+    mouse: U(progPhys,'u_mouse'),
+    mouseDown: U(progPhys,'u_mouseDown'),
+    mouseSign: U(progPhys,'u_mouseSign'),
+
+    damping: U(progPhys,'u_damping'),
+    force:   U(progPhys,'u_force'),
+    chaos:   U(progPhys,'u_chaos'),
+    bounds:  U(progPhys,'u_bounds'),
+
+    J:       U(progPhys,'u_J'),
+    ck0:     U(progPhys,'u_ck[0]'),
+    timeK:   U(progPhys,'u_timeK'),
+    timeMin: U(progPhys,'u_timeMin'),
+  };
+
+  const uPts = {
+    state: U(progPts,'u_state'),
+    k0:    U(progPts,'u_k0'),
+    k1:    U(progPts,'u_k1'),
+    aspect:U(progPts,'u_aspect'),
+    scale: U(progPts,'u_scale'),
+    rot:   U(progPts,'u_rot'),
+    tm:    U(progPts,'u_tm'),
+    frame: U(progPts,'u_frame'),
+    kernelOn: U(progPts,'u_kernelOn'),
+  };
+
+  const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
+  const uBlit = { tex:  U(progBlit,'u_tex') };
+
+  const uFieldFade = { prev: U(progFieldFade,'u_prev'), fade: U(progFieldFade,'u_fade') };
+
+  const uFieldDep = {
+    state: U(progFieldDep,'u_state'),
+    k0:    U(progFieldDep,'u_k0'),
+    k1:    U(progFieldDep,'u_k1'),
+    bounds:U(progFieldDep,'u_bounds'),
+    tm:    U(progFieldDep,'u_tm'),
+    frame: U(progFieldDep,'u_frame'),
+    kernelOn: U(progFieldDep,'u_kernelOn'),
+    deposit: U(progFieldDep,'u_deposit'),
+  };
+
+  const uBlur = { tex: U(progBlur,'u_tex'), dir: U(progBlur,'u_dir') };
+
+  // =========================
+  // TWIST konstanty (IFS)
+  // =========================
+  // J = 1 + exp(i*4π/5)
+  const angJ = 4*Math.PI/5;
+  const Jre = 1 + Math.cos(angJ);
+  const Jim = Math.sin(angJ);
+
+  // ck[k] = (1 - J) * ω_k
+  const oneMinusJ = { re: (1 - Jre), im: (0 - Jim) };
+  const CK = new Float32Array(10);
+  for(let k=0;k<5;k++){
+    const a = 2*Math.PI*k/5;
+    const wre = Math.cos(a), wim = Math.sin(a);
+    const cre = oneMinusJ.re*wre - oneMinusJ.im*wim;
+    const cim = oneMinusJ.re*wim + oneMinusJ.im*wre;
+    CK[2*k+0] = cre;
+    CK[2*k+1] = cim;
+  }
+
+  // =========================
+  // Resize (canvas + trail)
+  // =========================
+  let viewW=0, viewH=0, dpr=1;
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(2, Math.floor(rect.width  * dpr));
+    const h = Math.max(2, Math.floor(rect.height * dpr));
+    if(w===viewW && h===viewH) return;
+    viewW=w; viewH=h;
+    canvas.width = w;
+    canvas.height = h;
+    makeTrailTargets(w,h);
+  }
+  window.addEventListener('resize', resize);
+
+  // správně nastavíme velikost canvasu podle layoutu
+  function layout(){
+    const topH = document.body.classList.contains('ui-hidden') ? 0 : 44;
+    canvas.style.height = (window.innerHeight - topH) + "px";
+    canvas.style.width = "100%";
+    resize();
+  }
+  window.addEventListener('resize', layout);
+  layout();
+
+  // =========================
+  // Myš v souřadnicích světa
+  // =========================
+  let mouseNX = 0, mouseNY = 0; // -1..1 v obrazovce
+  let mx=0, my=0, mDown=0;
+  let viewRot = 0.0; // radiany, rotace pohledu
+
+  function updateMouse(e){
+    const rect = canvas.getBoundingClientRect();
+    mouseNX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNY = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+  }
+  window.addEventListener('mousemove', updateMouse);
+
+  window.addEventListener('mousedown', (e) => {
+    // only interact when clicking on canvas
+    if(e.target === canvas) mDown = 1;
+  });
+  window.addEventListener('mouseup', ()=> mDown=0);
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const dy = e.deltaY;
+
+    // Shift+kolecko = rotace pohledu
+    if (e.shiftKey) {
+      viewRot += dy * 0.0025;
+      if (viewRot > Math.PI) viewRot -= 2 * Math.PI;
+      if (viewRot < -Math.PI) viewRot += 2 * Math.PI;
+      return;
+    }
+
+    // Kolecko = meritko (zoom)
+    const min = parseFloat(ui.scale.min);
+    const max = parseFloat(ui.scale.max);
+    const s   = parseFloat(ui.scale.value);
+    const factor = Math.exp(-dy * 0.001);
+    let ns = s * factor;
+    ns = Math.min(max, Math.max(min, ns));
+    ui.scale.value = ns.toFixed(2);
+  }, { passive: false });
+
+  // =========================
+  // Dotyk (touch)
+  // =========================
+  let touchCount = 0;
+  let prevPinchDist = 0;
+  let prevPinchAngle = 0;
+
+  function touchCenter(t0, t1){
+    return { x: (t0.clientX + t1.clientX) / 2,
+             y: (t0.clientY + t1.clientY) / 2 };
+  }
+  function touchDist(t0, t1){
+    const dx = t1.clientX - t0.clientX;
+    const dy = t1.clientY - t0.clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+  function touchAngle(t0, t1){
+    return Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX);
+  }
+  function touchToNorm(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    mouseNX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNY = -(((clientY - rect.top) / rect.height) * 2 - 1);
+  }
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchCount = e.touches.length;
+    if(touchCount === 1){
+      touchToNorm(e.touches[0].clientX, e.touches[0].clientY);
+      mDown = 1;
+    } else if(touchCount >= 2){
+      mDown = 0;
+      prevPinchDist = touchDist(e.touches[0], e.touches[1]);
+      prevPinchAngle = touchAngle(e.touches[0], e.touches[1]);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    touchCount = e.touches.length;
+    if(touchCount === 1){
+      touchToNorm(e.touches[0].clientX, e.touches[0].clientY);
+      mDown = 1;
+    } else if(touchCount >= 2){
+      mDown = 0;
+      const dist = touchDist(e.touches[0], e.touches[1]);
+      const angle = touchAngle(e.touches[0], e.touches[1]);
+
+      // pinch = zoom
+      if(prevPinchDist > 0){
+        const ratio = dist / prevPinchDist;
+        const min = parseFloat(ui.scale.min);
+        const max = parseFloat(ui.scale.max);
+        let s = parseFloat(ui.scale.value) * ratio;
+        s = Math.min(max, Math.max(min, s));
+        ui.scale.value = s.toFixed(2);
+      }
+
+      // rotace dvema prsty
+      let da = angle - prevPinchAngle;
+      if(da > Math.PI) da -= 2 * Math.PI;
+      if(da < -Math.PI) da += 2 * Math.PI;
+      viewRot -= da;
+      if(viewRot > Math.PI) viewRot -= 2 * Math.PI;
+      if(viewRot < -Math.PI) viewRot += 2 * Math.PI;
+
+      prevPinchDist = dist;
+      prevPinchAngle = angle;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touchCount = e.touches.length;
+    if(touchCount === 0){
+      mDown = 0;
+    } else if(touchCount === 1){
+      touchToNorm(e.touches[0].clientX, e.touches[0].clientY);
+      mDown = 1;
+      prevPinchDist = 0;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchcancel', () => {
+    mDown = 0;
+    touchCount = 0;
+    prevPinchDist = 0;
+  });
+
+  // =========================
+  // TM bit
+  // =========================
+  function popcount32(v){
+    v = v - ((v >>> 1) & 0x55555555);
+    v = (v & 0x33333333) + ((v >>> 2) & 0x33333333);
+    return (((v + (v >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24;
+  }
+  function thueMorse32(v){ return popcount32(v>>>0) & 1; }
+
+  // =========================
+  // Reset / pauza
+  // =========================
+  let seed = (Math.random()*1e9)>>>0;
+  let frame = 0;
+  let partFlip = 0;
+  let fieldFlip = 0;
+  let paused = false;
+  let prevFieldOn = true;
+
+  function reset(){
+    seed = (Math.random()*1e9)>>>0;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[0]);
+    gl.viewport(0,0,TEX_SIZE,TEX_SIZE);
+    gl.useProgram(progInit);
+    gl.uniform1ui(uInit.seed, seed);
+    gl.bindVertexArray(vaoQuad);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    clearField();
+    makeTrailTargets(viewW, viewH);
+
+    partFlip = 0;
+    fieldFlip = 0;
+    trailFlip = 0;
+    frame = 0;
+    viewRot = 0.0;
+    ui.spin.value = '0.000';
+  }
+
+  document.getElementById('reset').addEventListener('click', reset);
+  document.getElementById('pause').addEventListener('click', ()=>{
+    paused = !paused;
+    document.getElementById('pause').innerHTML = paused ? "POKRAČOVAT <small>(SPC)</small>" : "PAUZA <small>(SPC)</small>";
+  });
+
+  // double-click na ROTACE slider = stop
+  ui.spin.addEventListener('dblclick', () => { ui.spin.value = '0.000'; });
+
+  // =========================
+  // Klávesy
+  // =========================
+  const helpEl = document.getElementById('helpOverlay');
+
+  // klik mimo help zavre
+  helpEl.addEventListener('click', (e) => {
+    if(e.target === helpEl) helpEl.classList.remove('show');
+  });
+
+  function nudge(slider, delta){
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const step = parseFloat(slider.step) || 0.001;
+    let v = parseFloat(slider.value) + delta * step;
+    v = Math.min(max, Math.max(min, v));
+    // match slider precision
+    const dec = (slider.step.split('.')[1] || '').length;
+    slider.value = v.toFixed(dec);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    // ignore when typing in inputs
+    if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    const k = e.key;
+    const S = 5; // nudge multiplier for sliders
+
+    switch(k){
+      // === HELP ===
+      case 'h': case 'H':
+        helpEl.classList.toggle('show');
+        break;
+      case 'Escape':
+        helpEl.classList.remove('show');
+        break;
+
+      // === UI VIDITELNOST ===
+      case 'u': case 'U':
+        document.body.classList.toggle('ui-hidden');
+        layout();
+        break;
+
+      // === TOGGLES ===
+      case ' ':
+        e.preventDefault();
+        paused = !paused;
+        document.getElementById('pause').innerHTML = paused ? 'POKRAČOVAT <small>(SPC)</small>' : 'PAUZA <small>(SPC)</small>';
+        break;
+      case 'r': case 'R':
+        reset();
+        break;
+      case '1':
+        ui.tglKernel.checked = !ui.tglKernel.checked;
+        syncUI();
+        break;
+      case '2':
+        ui.tglField.checked = !ui.tglField.checked;
+        syncUI();
+        break;
+      case '3':
+        ui.tglMouse.checked = !ui.tglMouse.checked;
+        syncUI();
+        break;
+      case '4':
+        ui.tglChaos.checked = !ui.tglChaos.checked;
+        syncUI();
+        break;
+      case '5':
+        ui.tglPump.checked = !ui.tglPump.checked;
+        syncUI();
+        break;
+      case 'm': case 'M':
+        if(ui.mouseRepel.checked){
+          ui.mouseAttract.checked = true;
+        } else {
+          ui.mouseRepel.checked = true;
+        }
+        syncUI();
+        break;
+      case 'p':
+        nudge(ui.particles, S);
+        break;
+      case 'n':
+        nudge(ui.particles, -S);
+        break;
+
+      // === CAMERA ===
+      case '+': case '=':
+        nudge(ui.scale, S * 5);
+        break;
+      case '-': case '_':
+        nudge(ui.scale, -S * 5);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        nudge(ui.spin, -S);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        nudge(ui.spin, S);
+        break;
+      case '0':
+        viewRot = 0.0;
+        ui.spin.value = '0.000';
+        break;
+
+      // === PHYSICS ===
+      case 'ArrowUp':
+        e.preventDefault();
+        nudge(ui.grav, S);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        nudge(ui.grav, -S);
+        break;
+      case '[':
+        nudge(ui.damping, -S);
+        break;
+      case ']':
+        nudge(ui.damping, S);
+        break;
+      case ';':
+        nudge(ui.force, -S);
+        break;
+      case "'":
+        nudge(ui.force, S);
+        break;
+      case ',':
+        nudge(ui.pressure, -S);
+        break;
+      case '.':
+        nudge(ui.pressure, S);
+        break;
+      case 'q':
+        nudge(ui.charge, -S);
+        break;
+      case 'a':
+        nudge(ui.charge, S);
+        break;
+      case 'w':
+        nudge(ui.timeK, -S);
+        break;
+      case 's':
+        nudge(ui.timeK, S);
+        break;
+      case 'e':
+        nudge(ui.timeMin, -S);
+        break;
+      case 'd':
+        nudge(ui.timeMin, S);
+        break;
+      case 't':
+        nudge(ui.pump, -S);
+        break;
+      case 'g':
+        nudge(ui.pump, S);
+        break;
+      case 'f':
+        nudge(ui.deposit, -S);
+        break;
+      case 'v':
+        nudge(ui.deposit, S);
+        break;
+      case 'z':
+        nudge(ui.chaos, -S);
+        break;
+      case 'x':
+        nudge(ui.chaos, S);
+        break;
+      case 'i':
+        nudge(ui.fade, -S);
+        break;
+      case 'k':
+        nudge(ui.fade, S);
+        break;
+      case 'o':
+        nudge(ui.ffield, -S);
+        break;
+      case 'l':
+        nudge(ui.ffield, S);
+        break;
+    }
+  });
+
+  // =========================
+  // FPS
+  // =========================
+  let lastT = performance.now(), acc=0, frames=0;
+
+  // start
+  reset();
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+
+  // =========================
+  // Hlavní smyčka
+  // =========================
+  function loop(){
+    layout();
+
+    const now = performance.now();
+    const dt = now - lastT; lastT = now;
+    acc += dt; frames++;
+    if(acc > 500){
+      fpsEl.textContent = String(Math.round((frames*1000)/acc));
+      frames=0; acc=0;
+    }
+
+    if(paused){
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    const tm = thueMorse32(frame);
+    tmEl.textContent = String(tm);
+    document.getElementById('rotv').textContent = String(Math.round(viewRot * 180 / Math.PI));
+
+    // auto-rotace
+    const spinSpeed = parseFloat(ui.spin.value);
+    if (Math.abs(spinSpeed) > 0.0001) {
+      viewRot += spinSpeed;
+      if (viewRot > Math.PI) viewRot -= 2 * Math.PI;
+      if (viewRot < -Math.PI) viewRot += 2 * Math.PI;
+    }
+
+    const kernelOn = ui.tglKernel.checked ? 1 : 0;
+    const fieldOn  = ui.tglField.checked  ? 1 : 0;
+    const mouseOn  = ui.tglMouse.checked  ? 1 : 0;
+    const chaosOn  = ui.tglChaos.checked  ? 1 : 0;
+    const pumpOn   = (ui.tglPump.checked && kernelOn) ? 1 : 0;
+
+    // myš režim: odpuz = +1, tahni = -1
+    const mouseSign = ui.mouseAttract.checked ? -1.0 : 1.0;
+
+    const damping = parseFloat(ui.damping.value);
+    const force   = parseFloat(ui.force.value);
+    const chaos   = parseFloat(ui.chaos.value);
+    const fade    = parseFloat(ui.fade.value);
+    const scale   = parseFloat(ui.scale.value);
+
+    const ffield  = parseFloat(ui.ffield.value);
+    const deposit = parseFloat(ui.deposit.value);
+    const grav    = parseFloat(ui.grav.value);
+    const pressure = parseFloat(ui.pressure.value);
+    const pump    = parseFloat(ui.pump.value);
+    const timeK   = parseFloat(ui.timeK.value);
+    const timeMin = parseFloat(ui.timeMin.value);
+    const charge  = parseFloat(ui.charge.value);
+
+    // pocet aktivnich castic (2^slider)
+    activeN = Math.min(N, 1 << parseInt(ui.particles.value));
+    pcEl.textContent = activeN.toLocaleString();
+
+    const bounds = 2.2;
+
+    // prepocti mys do svetovych souradnic kazdy snimek
+    {
+      const aspect = viewW / viewH;
+      mx = (mouseNX * aspect) / Math.max(0.001, scale);
+      my = (mouseNY) / Math.max(0.001, scale);
+      const c = Math.cos(-viewRot);
+      const s = Math.sin(-viewRot);
+      const wx = c * mx - s * my;
+      const wy = s * mx + c * my;
+      mx = wx;
+      my = wy;
+    }
+
+    // když pole znovu zapneš, smaž ho (férové)
+    if(fieldOn === 1 && prevFieldOn === false){
+      clearField();
+    }
+    prevFieldOn = (fieldOn === 1);
+
+    // =========================
+    // 0) POLE: fade + depozit + blur (jen když Field ON)
+    // =========================
+    if(fieldOn === 1){
+      const fieldWrite = 1 - fieldFlip;
+
+      // fade do fieldTex[fieldWrite]
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldWrite]);
+      gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
+      gl.useProgram(progFieldFade);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldFlip]);
+      gl.uniform1i(uFieldFade.prev, 0);
+      gl.uniform1f(uFieldFade.fade, ffield);
+
+      gl.bindVertexArray(vaoQuad);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      // depozit (aditivně) do stejného FBO
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+
+      gl.useProgram(progFieldDep);
+      gl.uniform1f(uFieldDep.bounds, bounds);
+      gl.uniform1i(uFieldDep.tm, tm);
+      gl.uniform1ui(uFieldDep.frame, frame>>>0);
+      gl.uniform1i(uFieldDep.kernelOn, kernelOn);
+      gl.uniform1f(uFieldDep.deposit, deposit);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
+      gl.uniform1i(uFieldDep.state, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, k0Tex[partFlip]);
+      gl.uniform1i(uFieldDep.k0, 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]);
+      gl.uniform1i(uFieldDep.k1, 2);
+
+      gl.bindVertexArray(vaoEmpty);
+      gl.drawArrays(gl.POINTS, 0, activeN);
+
+      gl.disable(gl.BLEND);
+
+      // blur X -> temp
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboTemp);
+      gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
+      gl.useProgram(progBlur);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldWrite]);
+      gl.uniform1i(uBlur.tex, 0);
+      gl.uniform2f(uBlur.dir, 1.0/FIELD_SIZE, 0.0);
+
+      gl.bindVertexArray(vaoQuad);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      // blur Y -> fieldBlur[fieldWrite]
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fboBlur[fieldWrite]);
+      gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
+      gl.useProgram(progBlur);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, fieldTemp);
+      gl.uniform1i(uBlur.tex, 0);
+      gl.uniform2f(uBlur.dir, 0.0, 1.0/FIELD_SIZE);
+
+      gl.bindVertexArray(vaoQuad);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+      fieldFlip = fieldWrite;
+    }
+
+    // =========================
+    // 1) KROK (kernel + obal)
+    // =========================
+    const activeRows = Math.min(TEX_SIZE, Math.ceil(activeN / TEX_SIZE));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[1-partFlip]);
+    gl.viewport(0,0,TEX_SIZE,activeRows);
+    gl.useProgram(progPhys);
+
+    gl.uniform1i(uPhys.tm, tm);
+    gl.uniform1ui(uPhys.frame, frame>>>0);
+
+    gl.uniform1i(uPhys.kernelOn, kernelOn);
+    gl.uniform1i(uPhys.fieldOn,  fieldOn);
+    gl.uniform1i(uPhys.mouseOn,  mouseOn);
+    gl.uniform1i(uPhys.chaosOn,  chaosOn);
+    gl.uniform1i(uPhys.pumpOn,   pumpOn);
+
+    gl.uniform1f(uPhys.grav, (fieldOn ? grav : 0.0));
+    gl.uniform1f(uPhys.pump, (pumpOn ? pump : 0.0));
+    gl.uniform1f(uPhys.charge, (fieldOn ? charge : 0.0));
+    gl.uniform1f(uPhys.pressure, (fieldOn ? pressure : 0.0));
+
+    gl.uniform2f(uPhys.mouse, mx, my);
+    gl.uniform1f(uPhys.mouseDown, (mouseOn ? mDown : 0.0));
+    gl.uniform1f(uPhys.mouseSign, mouseSign);
+
+    gl.uniform1f(uPhys.damping, damping);
+    gl.uniform1f(uPhys.force, force);
+    gl.uniform1f(uPhys.chaos, (chaosOn ? chaos : 0.0));
+    gl.uniform1f(uPhys.bounds, bounds);
+
+    gl.uniform2f(uPhys.J, Jre, Jim);
+    gl.uniform2fv(uPhys.ck0, CK);
+    gl.uniform2f(uPhys.fieldTexel, 1.0/FIELD_SIZE, 1.0/FIELD_SIZE);
+    gl.uniform1f(uPhys.timeK, fieldOn ? timeK : 0.0);
+    gl.uniform1f(uPhys.timeMin, timeMin);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
+    gl.uniform1i(uPhys.state, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, k0Tex[partFlip]);
+    gl.uniform1i(uPhys.k0, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]);
+    gl.uniform1i(uPhys.k1, 2);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, fieldBlur[fieldFlip]);
+    gl.uniform1i(uPhys.field, 3);
+
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldFlip]);
+    gl.uniform1i(uPhys.fieldRaw, 4);
+
+    gl.bindVertexArray(vaoQuad);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    partFlip = 1 - partFlip;
+
+    // =========================
+    // 2) STOPA: fade (trail)
+    // =========================
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo[1-trailFlip]);
+    gl.viewport(0,0,viewW,viewH);
+    gl.useProgram(progFade);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, trailTex[trailFlip]);
+    gl.uniform1i(uFade.prev, 0);
+    gl.uniform1f(uFade.fade, fade);
+
+    gl.bindVertexArray(vaoQuad);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // =========================
+    // 3) Body do stopy (aditivně)
+    // =========================
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+    gl.useProgram(progPts);
+    gl.uniform1f(uPts.aspect, viewW / viewH);
+    gl.uniform1f(uPts.scale, scale);
+    gl.uniform1f(uPts.rot, viewRot);
+    gl.uniform1i(uPts.tm, tm);
+    gl.uniform1ui(uPts.frame, frame>>>0);
+    gl.uniform1i(uPts.kernelOn, kernelOn);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
+    gl.uniform1i(uPts.state, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, k0Tex[partFlip]);
+    gl.uniform1i(uPts.k0, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]);
+    gl.uniform1i(uPts.k1, 2);
+
+    gl.bindVertexArray(vaoEmpty);
+    gl.drawArrays(gl.POINTS, 0, activeN);
+
+    gl.disable(gl.BLEND);
+
+    // =========================
+    // 4) Blit na obrazovku
+    // =========================
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0,0,viewW,viewH);
+    gl.useProgram(progBlit);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, trailTex[1-trailFlip]);
+    gl.uniform1i(uBlit.tex, 0);
+
+    gl.bindVertexArray(vaoQuad);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    trailFlip = 1 - trailFlip;
+
+    frame = (frame + 1) >>> 0;
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
