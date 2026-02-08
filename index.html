@@ -33,15 +33,6 @@
   }
   .panel::-webkit-scrollbar{ width:4px; }
   .panel::-webkit-scrollbar-thumb{ background:#1e1e28; border-radius:2px; }
-  .panel-hidden .panel{ display:none !important; }
-  .panel-toggle{
-    position:absolute; left:14px; bottom:14px;
-    pointer-events:auto; background:rgba(6,6,10,0.78);
-    border:1px solid #1e1e28; color:#666; font-size:10px;
-    padding:5px 10px; border-radius:6px; cursor:pointer;
-    font-family:inherit; display:none;
-  }
-  .panel-hidden .panel-toggle{ display:block; }
   .credit{
     position:absolute; bottom:4px; right:14px;
     font-size:8px; color:#2a2a36; pointer-events:none; letter-spacing:1px;
@@ -98,7 +89,6 @@
   .ui-hidden .help-hint,
   .ui-hidden .help-overlay,
   .ui-hidden .credit,
-  .ui-hidden .panel-toggle{ display:none !important; }
   .ui-hidden .wrap{ height:100vh; }
 </style>
 </head>
@@ -125,10 +115,6 @@
     </div>
 
     <div class="panel">
-      <div style="display:flex; gap:10px; pointer-events:auto; margin-bottom:6px;">
-        <button id="panelHide">SKRÝT <small>(TAB)</small></button>
-      </div>
-
       <div class="row" id="rowModules">
         <label>MODULY</label>
         <div class="tog">
@@ -148,6 +134,7 @@
         </div>
       </div>
 
+      <div id="slidersWrap">
       <div class="row" id="rowParticles">
         <label>ČÁSTICE <small>(P/N)</small></label>
         <input id="particles" type="range" min="12" max="24" step="1" value="19" />
@@ -222,16 +209,16 @@
         <label>POHON <small>(T G)</small></label>
         <input id="pump" type="range" min="0.000" max="0.100" step="0.001" value="0.069" />
       </div>
+      </div>
 
       <div style="display:flex; gap:10px; pointer-events:auto; flex-wrap:wrap;">
+        <button id="panelHide">SKRÝT <small>(TAB)</small></button>
         <button id="reset">RESET <small>(R)</small></button>
         <button id="defaults">VÝCHOZÍ <small>(B)</small></button>
         <button id="pause">PAUZA <small>(SPC)</small></button>
         <button id="share">SDÍLET <small>(C)</small></button>
       </div>
     </div>
-
-    <button class="panel-toggle" id="panelShow">MENU <small>(TAB)</small></button>
 
     <div class="help-overlay" id="helpOverlay">
       <h3>PŘEPÍNAČE</h3>
@@ -370,15 +357,20 @@
   // =========================
   // Panel toggle (TAB)
   // =========================
-  const wrapEl = document.querySelector('.wrap');
-  const panelShowBtn = document.getElementById('panelShow');
+  // Panel toggle (TAB) - skryje/ukaze pouze slidery
+  // =========================
+  const slidersWrap = document.getElementById('slidersWrap');
   const panelHideBtn = document.getElementById('panelHide');
 
+  let slidersVisible = true;
   function togglePanel(){
-    wrapEl.classList.toggle('panel-hidden');
+    slidersVisible = !slidersVisible;
+    slidersWrap.style.display = slidersVisible ? '' : 'none';
+    panelHideBtn.innerHTML = slidersVisible
+      ? 'SKRÝT <small>(TAB)</small>'
+      : 'UKÁZAT <small>(TAB)</small>';
   }
   panelHideBtn.addEventListener('click', togglePanel);
-  panelShowBtn.addEventListener('click', togglePanel);
 
   // =========================
   // URL hash: encode/decode nastavení
