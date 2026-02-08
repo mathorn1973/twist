@@ -27,11 +27,11 @@
   .hud .v{ color:#00d2ff; }
   .panel{
     position:absolute; left:14px; bottom:14px;
-    display:flex; flex-direction:column; gap:10px; pointer-events:none;
+    display:flex; flex-direction:column; gap:10px; pointer-events:auto;
     max-height:calc(100% - 28px); overflow-y:auto; overflow-x:hidden;
     scrollbar-width:thin; scrollbar-color:#1e1e28 transparent;
   }
-  @media(max-width:499px){
+  @media(max-width:1024px){
     .panel{ bottom:auto; top:4px; max-height:calc(100% - 8px); }
   }
   .panel::-webkit-scrollbar{ width:4px; }
@@ -164,6 +164,11 @@
         <input id="particles" type="range" min="12" max="24" step="1" value="19" />
       </div>
 
+      <div class="row" id="rowTempo">
+        <label>TEMPO <small>(J Y)</small></label>
+        <input id="tempo" type="range" min="0.05" max="3.00" step="0.01" value="1.00" />
+      </div>
+
       <div class="row" id="rowDamping">
         <label>TLUMENÍ <small>([ ])</small></label>
         <input id="damping" type="range" min="0.50" max="1.000" step="0.001" value="0.677" />
@@ -186,7 +191,7 @@
 
       <div class="row" id="rowScale">
         <label>MĚŘÍTKO <small>(+ −)</small></label>
-        <input id="scale" type="range" min="0.02" max="80.0" step="0.01" value="0.65" />
+        <input id="scale" type="range" min="0.05" max="5.00" step="0.01" value="0.65" />
       </div>
 
       <div class="row" id="rowSpin">
@@ -267,6 +272,7 @@
       <div class="krow"><span class="kk">Z / X</span><span>chaos</span></div>
       <div class="krow"><span class="kk">I / K</span><span>stopa (fade)</span></div>
       <div class="krow"><span class="kk">O / L</span><span>pole fade</span></div>
+      <div class="krow"><span class="kk">J / Y</span><span>tempo (zpomalit / zrychlit)</span></div>
       <h3>NÁPOVĚDA</h3>
       <div class="krow"><span class="kk">H</span><span>zobrazit / skrýt</span></div>
       <div class="krow"><span class="kk">U</span><span>skrýt / ukázat vše (čisté plátno)</span></div>
@@ -287,10 +293,10 @@
 
   const ext = gl.getExtension('EXT_color_buffer_float');
   if(!ext){ alert("Chybí EXT_color_buffer_float (float render target)."); return; }
-  gl.getExtension('EXT_float_blend'); // blend na RGBA16F poli
+  gl.getExtension('EXT_float_blend');
 
   // =========================
-  // UI (ovládání + šednutí)
+  // UI
   // =========================
   const ui = {
     tglKernel:  document.getElementById('tglKernel'),
@@ -318,6 +324,7 @@
     timeMin: document.getElementById('timeMin'),
     charge:  document.getElementById('charge'),
     particles: document.getElementById('particles'),
+    tempo: document.getElementById('tempo'),
 
     rowMouseMode: document.getElementById('rowMouseMode'),
     rowChaos: document.getElementById('rowChaos'),
@@ -344,7 +351,6 @@
     const mouseOn  = ui.tglMouse.checked;
     const chaosOn  = ui.tglChaos.checked;
 
-    // pohon jen když běží jádro
     if(!kernelOn){
       ui.tglPump.checked = false;
       ui.tglPump.disabled = true;
@@ -355,7 +361,6 @@
 
     setRowEnabled(ui.rowMouseMode, mouseOn);
     setRowEnabled(ui.rowChaos, chaosOn);
-
     setRowEnabled(ui.rowFieldFade, fieldOn);
     setRowEnabled(ui.rowDeposit, fieldOn);
     setRowEnabled(ui.rowGrav, fieldOn);
@@ -363,7 +368,6 @@
     setRowEnabled(ui.rowTimeK, fieldOn);
     setRowEnabled(ui.rowTimeMin, fieldOn);
     setRowEnabled(ui.rowCharge, fieldOn);
-
     setRowEnabled(ui.rowPump, pumpOn);
   }
 
@@ -375,8 +379,6 @@
 
   // =========================
   // Panel toggle (TAB)
-  // =========================
-  // Panel toggle (TAB) - skryje/ukaze pouze slidery
   // =========================
   const slidersWrap = document.getElementById('slidersWrap');
   const panelHideBtn = document.getElementById('panelHide');
@@ -390,25 +392,23 @@
       : 'UKÁZAT <small>(TAB)</small>';
   }
   panelHideBtn.addEventListener('click', togglePanel);
-  // init state
   if(!slidersVisible) slidersWrap.style.display = 'none';
   if(!slidersVisible) panelHideBtn.innerHTML = 'UKÁZAT <small>(TAB)</small>';
 
   // =========================
-  // URL hash: encode/decode nastavení
+  // URL hash: encode/decode
   // =========================
   const BASE_URL = 'https://mathorn1973.github.io/twist/';
 
-  // slider keys (short codes)
   const SLIDER_MAP = [
     ['dm', 'damping'],   ['fo', 'force'],    ['ch', 'chaos'],
     ['fa', 'fade'],      ['sc', 'scale'],    ['sp', 'spin'],
     ['ff', 'ffield'],    ['de', 'deposit'],  ['gr', 'grav'],
     ['pr', 'pressure'],  ['tk', 'timeK'],    ['tm', 'timeMin'],
     ['qa', 'charge'],    ['pu', 'pump'],     ['pa', 'particles'],
+    ['te', 'tempo'],
   ];
 
-  // toggle keys
   const TOGGLE_MAP = [
     ['K', 'tglKernel'], ['F', 'tglField'], ['X', 'tglMouse'],
     ['C', 'tglChaos'],  ['P', 'tglPump'],  ['E', 'tglExact'],
@@ -416,15 +416,12 @@
 
   function encodeSettings(){
     let parts = [];
-    // toggles as single string: K1F1X1C1P0
     let tg = '';
     for(const [k, id] of TOGGLE_MAP){
       tg += k + (ui[id].checked ? '1' : '0');
     }
     parts.push(tg);
-    // mouse mode
     parts.push('M' + (ui.mouseAttract.checked ? 'a' : 'r'));
-    // sliders
     for(const [k, id] of SLIDER_MAP){
       parts.push(k + ui[id].value);
     }
@@ -433,20 +430,14 @@
 
   function decodeSettings(hash){
     if(!hash) return;
-    // backwards compat: old format used '.' separator (broken for decimals)
-    // detect: if no '~' present but '.' is, try old format
     let parts;
     if(hash.includes('~')){
       parts = hash.split('~');
     } else {
-      // old dot format: split carefully, rejoin decimal values
-      // e.g. "K1F1X1C1P1.Mr.dm0.677" -> dots between params
-      // heuristic: split on dots, rejoin when a part is pure digits (decimal tail)
       const raw = hash.split('.');
       parts = [];
       for(let i = 0; i < raw.length; i++){
         if(i > 0 && /^\d+$/.test(raw[i]) && parts.length > 0 && /\d$/.test(parts[parts.length-1])){
-          // this is a decimal tail, rejoin
           parts[parts.length-1] += '.' + raw[i];
         } else {
           parts.push(raw[i]);
@@ -454,7 +445,6 @@
       }
     }
     for(const p of parts){
-      // toggles: K1F1X1C1P1E0
       if(p.length > 4 && /^[KFXCPE][01]/.test(p)){
         for(let i = 0; i < p.length - 1; i += 2){
           const key = p[i];
@@ -465,13 +455,11 @@
         }
         continue;
       }
-      // mouse mode
       if(p[0] === 'M' && p.length === 2){
         if(p[1] === 'a') ui.mouseAttract.checked = true;
         else ui.mouseRepel.checked = true;
         continue;
       }
-      // sliders (2-char key + value)
       const sk = p.substring(0, 2);
       const sv = p.substring(2);
       for(const [k, id] of SLIDER_MAP){
@@ -491,8 +479,6 @@
   function shareURL(){
     const hash = encodeSettings();
     const url = BASE_URL + '#' + hash;
-
-    // try to update location hash (fails in iframe/srcdoc, fine on github.io)
     try { history.replaceState(null, '', '#' + hash); } catch(e){}
 
     function showOK(){
@@ -503,18 +489,14 @@
     }
 
     function showURL(){
-      // in iframe: show the URL visually since clipboard is blocked
       const btn = document.getElementById('share');
       const orig = btn.innerHTML;
       btn.innerHTML = '<span style="font-size:8px;word-break:break-all;max-width:200px;display:inline-block">' + url + '</span>';
       setTimeout(() => { btn.innerHTML = orig; }, 5000);
     }
 
-    // try clipboard API first
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(url).then(showOK).catch(() => {
-        fallback();
-      });
+      navigator.clipboard.writeText(url).then(showOK).catch(() => { fallback(); });
     } else {
       fallback();
     }
@@ -530,13 +512,12 @@
       try { ok = document.execCommand('copy'); } catch(e){}
       document.body.removeChild(ta);
       if(ok) showOK();
-      else showURL(); // last resort: just display the URL
+      else showURL();
     }
   }
 
   document.getElementById('share').addEventListener('click', shareURL);
 
-  // načti nastavení z URL hash při startu
   if(location.hash.length > 1){
     decodeSettings(location.hash.substring(1));
   }
@@ -549,23 +530,20 @@
   const pcEl  = document.getElementById('pc');
 
   // =========================
-  // PARAMETRY GPU (auto-detect s fallback)
+  // GPU params
   // =========================
   const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-  // VRAM odhad: 6 textur RGBA16F (8B/px) = 48B/px
-  // cil: max ~400 MiB na castice
   const maxPixels = Math.min(400 * 1024 * 1024 / 48, maxTexSize * maxTexSize);
   const TEX_SIZE = Math.min(3200, Math.floor(Math.sqrt(maxPixels)));
   const N        = TEX_SIZE * TEX_SIZE;
   const FIELD_SIZE = 256;
 
   console.log('TEX_SIZE:', TEX_SIZE, ' N:', N.toLocaleString(), ' MAX_TEXTURE_SIZE:', maxTexSize);
-
   pcEl.textContent = N.toLocaleString();
   let activeN = N;
 
   // =========================
-  // WebGL pomocné funkce
+  // WebGL helpers
   // =========================
   function compile(type, src){
     const s = gl.createShader(type);
@@ -607,16 +585,15 @@
     gl.drawBuffers(bufs);
     const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
     if(st !== gl.FRAMEBUFFER_COMPLETE){
-      throw new Error("FBO není kompletní: " + st.toString(16));
+      throw new Error("FBO incomplete: " + st.toString(16));
     }
     return f;
   }
   function U(p, name){ return gl.getUniformLocation(p, name); }
 
   // =========================
-  // SHADERY
+  // SHADERS
   // =========================
-
   const VS_QUAD = `#version 300 es
   layout(location=0) in vec2 a_pos;
   out vec2 v_uv;
@@ -628,9 +605,9 @@
   const FS_INIT = `#version 300 es
   precision highp float;
   precision highp int;
-  layout(location=0) out vec4 o_state; // pos.xy, vel.zw
-  layout(location=1) out vec4 o_k0;    // p1,p4,p1p,p4p
-  layout(location=2) out vec4 o_k1;    // q,ts,0,0
+  layout(location=0) out vec4 o_state;
+  layout(location=1) out vec4 o_k0;
+  layout(location=2) out vec4 o_k1;
   uniform uint u_seed;
 
   uint hash(uint x){
@@ -653,13 +630,11 @@
     float rad = sqrt(r) * 1.4;
     vec2 pos = vec2(cos(a), sin(a)) * rad;
 
-    // pocatecni rychlost: tangencialni + maly radial
     uint h3 = hash(h2 + 1u);
-    float va = a + 1.5708; // kolmo na smer od stredu
+    float va = a + 1.5708;
     float vmag = 0.005 + float(h3 & 0xFFFFu) / 65535.0 * 0.01;
     vec2 vel = vec2(cos(va), sin(va)) * vmag;
 
-    // init kernel: tady může být % (není to "pravdivá cesta")
     uint k0 = hash(h2);
     uint k1 = hash(k0);
     int p1  = int(k0 % 5u);
@@ -682,14 +657,13 @@
   out vec4 o_col;
   void main(){ o_col = min(texture(u_prev, v_uv) * u_fade, 8.0); }`;
 
-  // Fade pro pole: s clampem proti saturaci v RGBA16F
   const FS_FIELD_FADE = `#version 300 es
   precision highp float;
   in vec2 v_uv;
   uniform sampler2D u_prev;
   uniform float u_fade;
   out vec4 o_col;
-  void main(){ o_col = min(texture(u_prev, v_uv) * u_fade, 1.0); }`;  // kanonicky: rho ∈ [0,1]
+  void main(){ o_col = min(texture(u_prev, v_uv) * u_fade, 1.0); }`;
 
   const FS_BLIT = `#version 300 es
   precision highp float;
@@ -698,7 +672,6 @@
   out vec4 o_col;
   void main(){
     vec3 c = texture(u_tex, v_uv).rgb;
-    // Reinhard tone-map: zachova barvy, nikdy nebude bila
     c = c / (1.0 + c);
     o_col = vec4(c, 1.0);
   }`;
@@ -718,7 +691,6 @@
     o_col = c;
   }`;
 
-  // Depozit do pole (hmota + naboj)
   const VS_POINTS_FIELD = `#version 300 es
   precision highp float;
   precision highp int;
@@ -734,8 +706,8 @@
   uniform int   u_kernelOn;
 
   out float v_mass;
-  out float v_qp;   // kladny naboj (d-event)
-  out float v_qm;   // zaporny naboj (e-event)
+  out float v_qp;
+  out float v_qm;
 
   uint hash(uint x){
     x ^= x >> 16u;
@@ -781,10 +753,7 @@
       int z = z_trace6(p1,p4,p1p,p4p,q,ts);
       int idx = idx_map(z, u_tm);
 
-      // hmota: gyron (z==4 pri TM==0) — v5.1 §85.10 trace-measurement (o=z)
       if(u_tm == 0 && z == 4) mass = u_deposit;
-
-      // naboj: d/e defekt (kazdym krokem) — realizacni vrstva, ne LOCK
       if(idx == 3) qp = u_deposit;
       if(idx == 4) qm = u_deposit;
     } else {
@@ -812,7 +781,6 @@
   out vec4 o_col;
   void main(){ o_col = vec4(v_mass, v_qp, v_qm, 1.0); }`;
 
-  // Krok jádra + obalová fyzika + pole + myš režim + chaos + pohon
   const FS_PHYS = `#version 300 es
   precision highp float;
   precision highp int;
@@ -822,7 +790,7 @@
   uniform sampler2D u_k1;
 
   uniform sampler2D u_field;
-  uniform sampler2D u_fieldRaw;  // nerozmazane pole (kratsi dosah naboje)
+  uniform sampler2D u_fieldRaw;
   uniform vec2  u_fieldTexel;
 
   uniform int   u_tm;
@@ -833,28 +801,29 @@
   uniform int   u_mouseOn;
   uniform int   u_chaosOn;
   uniform int   u_pumpOn;
-  uniform int   u_exactIFS;  // presny IFS: pos = target, vel = 0
+  uniform int   u_exactIFS;
 
   uniform float u_grav;
   uniform float u_pump;
-  uniform float u_charge;    // sila nabojoveho pole
-  uniform float u_pressure;  // kratkodosahovy tlak (tvrde jadro)
+  uniform float u_charge;
+  uniform float u_pressure;
 
   uniform vec2  u_mouse;
   uniform float u_mouseDown;
-  uniform float u_mouseSign; // +1 odpuz, -1 tahni
+  uniform float u_mouseSign;
 
   uniform float u_damping;
   uniform float u_force;
   uniform float u_chaos;
   uniform float u_bounds;
-  uniform float u_kick;  // nahodny impuls (pouziva se pri prechodu)
+  uniform float u_kick;
 
   uniform vec2  u_J;
   uniform vec2  u_ck[5];
 
-  uniform float u_timeK;    // sila dilatace
-  uniform float u_timeMin;  // spodni mez (aby se to nezastavilo)
+  uniform float u_timeK;
+  uniform float u_timeMin;
+  uniform float u_tempo;
 
   layout(location=0) out vec4 o_state;
   layout(location=1) out vec4 o_k0;
@@ -909,7 +878,6 @@
     vec4 ok1 = k1;
 
     int idx = 0;
-
     int p1=0,p4=0,p1p=0,p4p=0,q=0,ts=0;
     int z0=0, q0=0;
 
@@ -925,7 +893,6 @@
       q0 = q;
       idx = idx_map(z0, u_tm);
 
-      // SS66 generátory
       if(idx==0){
         int tp=p1; p1=p4; p4=tp;
         tp=p1p; p1p=p4p; p4p=tp;
@@ -952,24 +919,18 @@
         q   = sub5i(2,q);   ts  = sub5i(1,ts);
       }
     } else {
-      // jádro vypnuté: idx = hash
       uint uid = uint(coord.y) * uint(${TEX_SIZE}) + uint(coord.x);
       uint h = hash(uid + u_frame * 1923u);
       idx = int(h % 5u);
     }
 
-    // IFS cíl
     vec2 target = u_ck[idx] + cmul(u_J, pos);
 
-    // PŘESNÝ IFS: kanonický krok, žádné síly
     if(u_exactIFS == 1){
       pos = target;
       vel = vec2(0.0);
-
-      // hranice
       if(abs(pos.x) > u_bounds){ pos.x = sign(pos.x) * u_bounds; }
       if(abs(pos.y) > u_bounds){ pos.y = sign(pos.y) * u_bounds; }
-
       o_state = vec4(pos, vel);
       if(u_kernelOn == 1){
         o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
@@ -981,66 +942,51 @@
       return;
     }
 
-    // pružina k cíli
     vec2 acc = (target - pos) * u_force;
 
-    // pole = hustota + gradient + casova dilatace + naboj
-    // dτ/dn: proper-time rate (1 = volný prostor, Canon: lapse L = 1/N)
     float N = 1.0;
 
     if(u_fieldOn == 1){
       vec2 uv = pos / u_bounds * 0.5 + 0.5;
       uv = clamp(uv, vec2(0.001), vec2(0.999));
 
-      // hmota z rozmazaneho pole (R kanal) -> gravitace + cas
       float rho = texture(u_field, uv).r;
 
-      // lokalni tempo casu: N = 1/(1 + K*rho), rho kanonicky v [0,1]
       N = 1.0 / (1.0 + u_timeK * rho);
       N = clamp(N, u_timeMin, 1.0);
 
-      // gravitace: pritazlivost z rozmazaneho pole (dlouhy dosah)
-      // bez invN: vsechny sily v souradnicovem case, dt=N resi vlastni cas
       if(u_grav > 0.0){
         float fx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0)).r;
         float fx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0)).r;
         float fy1 = texture(u_field, uv + vec2(0.0, u_fieldTexel.y)).r;
         float fy0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y)).r;
-
         vec2 gradL = vec2(fx1 - fx0, fy1 - fy0);
         acc += gradL * u_grav;
       }
 
-      // vzorkuj syrove pole jednou (pro tlak i naboj)
       vec4 raw_xp = texture(u_fieldRaw, uv + vec2(u_fieldTexel.x, 0.0));
       vec4 raw_xm = texture(u_fieldRaw, uv - vec2(u_fieldTexel.x, 0.0));
       vec4 raw_yp = texture(u_fieldRaw, uv + vec2(0.0, u_fieldTexel.y));
       vec4 raw_ym = texture(u_fieldRaw, uv - vec2(0.0, u_fieldTexel.y));
 
-      // tlak: odpudivost ze syroveho pole (kratky dosah)
-      // bez invN: konzistentni s gravitaci
       if(u_pressure > 0.0){
         vec2 gradS = vec2(raw_xp.r - raw_xm.r, raw_yp.r - raw_ym.r);
         acc -= gradS * u_pressure;
       }
 
-      // nabojove pole: plazma (varianta A)
       if(u_charge > 0.0){
         vec4 raw_here = texture(u_fieldRaw, uv);
         float rhoQ = raw_here.g - raw_here.b;
         float Q = sign(rhoQ);
-
         float qxp = raw_xp.g - raw_xp.b;
         float qxm = raw_xm.g - raw_xm.b;
         float qyp = raw_yp.g - raw_yp.b;
         float qym = raw_ym.g - raw_ym.b;
-
         vec2 gradQ = vec2(qxp - qxm, qyp - qym);
         acc += Q * gradQ * u_charge;
       }
     }
 
-    // myš (odpuz / tahni)
     if(u_mouseOn == 1 && u_mouseDown > 0.5){
       vec2 md = pos - u_mouse;
       float d2 = dot(md, md) + 0.002;
@@ -1049,31 +995,25 @@
       }
     }
 
-    // chaos
     if(u_chaosOn == 1 && u_chaos > 0.0){
       float h = hashf(coord, u_tm);
       float ang = h * 6.2831853;
       acc += vec2(cos(ang), sin(ang)) * (u_chaos * 0.006);
     }
 
-    // integrace v lokalnim case (dt = N)
-    float dt = N;
+    float dt = N * u_tempo;
 
-    // clamp zrychleni (ochrana proti explozi z velkych gradientu)
     float accLen = length(acc);
     if(accLen > 0.5) acc *= 0.5 / accLen;
 
     vel += acc * dt;
     vel *= mix(1.0, u_damping, dt);
 
-    // pohon: deterministický impuls při gyron (tm==0 && z0==4), směr z q0
     if(u_kernelOn==1 && u_pumpOn==1 && u_tm==0 && z0==4 && u_pump > 0.0){
       float ang = 6.2831853 * float(q0) / 5.0;
       vel += vec2(cos(ang), sin(ang)) * u_pump;
     }
 
-    // nulova energie: castice nikdy nesmi stat
-    // bez pole vetsi (aby nezamrzly na fraktalu), s polem mensi
     {
       uint tid = hash(uint(coord.y) * uint(${TEX_SIZE}) + uint(coord.x) + u_frame * 3571u);
       float ta = float(tid & 0xFFFFu) / 65535.0 * 6.2831853;
@@ -1081,13 +1021,11 @@
       vel += vec2(cos(ta), sin(ta)) * (thermal + u_kick);
     }
 
-    // clamp rychlost
     float vLen = length(vel);
     if(vLen > 1.0) vel *= 1.0 / vLen;
 
     pos += vel * dt;
 
-    // NaN/Inf ochrana: kdyz exploduje, resetuj na nahodnou pozici (ne stred!)
     if(any(isnan(pos)) || any(isinf(pos)) || any(isnan(vel)) || any(isinf(vel))){
       uint rid = hash(uint(coord.y) * uint(${TEX_SIZE}) + uint(coord.x) + u_frame * 7919u);
       uint rid2 = hash(rid);
@@ -1097,13 +1035,11 @@
       vel = vec2(0.0);
     }
 
-    // hranice
     if(abs(pos.x) > u_bounds){ pos.x = sign(pos.x) * u_bounds; vel.x *= -0.45; }
     if(abs(pos.y) > u_bounds){ pos.y = sign(pos.y) * u_bounds; vel.y *= -0.45; }
 
     o_state = vec4(pos, vel);
 
-    // když kernelOff, necháme kernel stav beze změny
     if(u_kernelOn == 1){
       o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
       o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
@@ -1113,7 +1049,6 @@
     }
   }`;
 
-  // Render bodů
   const VS_POINTS = `#version 300 es
   precision highp float;
   precision highp int;
@@ -1179,7 +1114,7 @@
       uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
       uint h = hash(uid + u_frame * 1923u);
       idx = int(h % 5u);
-      z = (idx==4) ? 4 : 1;
+      z = idx;
       v_gyron = (u_tm==0 && idx==4) ? 1.0 : 0.0;
     }
 
@@ -1200,18 +1135,22 @@
   flat in float v_z;
   flat in float v_gyron;
   uniform float u_scale;
-  uniform float u_alphaMul; // kompenzace poctu castic
+  uniform float u_alphaMul;
   uniform int u_exactIFS;
   out vec4 o_col;
   void main(){
     float e = clamp(v_speed * 28.0, 0.0, 1.0);
-    vec3 c1 = vec3(0.90, 0.45, 0.10);
-    vec3 c4 = vec3(0.10, 0.85, 1.00);
-    vec3 c = (v_z > 3.5) ? c4 : c1;
+
+    // 5 barev pro 5 z-hodnot
+    vec3 c;
+    int z = int(v_z + 0.5);
+    if(z == 0)      c = vec3(0.95, 0.30, 0.12);  // ohen
+    else if(z == 1) c = vec3(0.95, 0.72, 0.12);  // zlato
+    else if(z == 2) c = vec3(0.15, 0.90, 0.40);  // smaragd
+    else if(z == 3) c = vec3(0.30, 0.50, 1.00);  // kobalt
+    else            c = vec3(0.10, 0.85, 1.00);  // azur (gyron)
 
     if(u_exactIFS == 1){
-      // presny fraktal: plna barva, nizka alfa pro postupnou akumulaci
-      // s fade=1.0 se kazdy snimek prida, fraktal roste z invariantni miry
       if(v_gyron > 0.5) c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
       float alpha = 0.008 * u_alphaMul;
       o_col = vec4(c, clamp(alpha, 0.001, 0.1));
@@ -1224,14 +1163,13 @@
   }`;
 
   // =========================
-  // Programy
+  // Programs
   // =========================
   const progInit      = program(VS_QUAD, FS_INIT);
   const progPhys      = program(VS_QUAD, FS_PHYS);
   const progPts       = program(VS_POINTS, FS_POINTS);
   const progFade      = program(VS_QUAD, FS_FADE);
   const progBlit      = program(VS_QUAD, FS_BLIT);
-
   const progFieldFade = program(VS_QUAD, FS_FIELD_FADE);
   const progFieldDep  = program(VS_POINTS_FIELD, FS_FIELD_DEPOSIT);
   const progBlur      = program(VS_QUAD, FS_BLUR);
@@ -1250,7 +1188,7 @@
   const vaoEmpty = gl.createVertexArray();
 
   // =========================
-  // Textury částic (ping-pong)
+  // Particle textures (ping-pong)
   // =========================
   const IFMT = gl.RGBA16F;
   const FMT  = gl.RGBA;
@@ -1269,7 +1207,7 @@
   ];
 
   // =========================
-  // Pole (RGBA16F) + blur
+  // Field (RGBA16F) + blur
   // =========================
   const fieldTex  = [tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR),
                      tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR)];
@@ -1300,7 +1238,7 @@
   }
 
   // =========================
-  // Trail (obraz) ping-pong
+  // Trail (ping-pong)
   // =========================
   let trailTex = [null, null];
   let trailFbo = [null, null];
@@ -1319,97 +1257,64 @@
     gl.viewport(0,0,w,h);
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-
     gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo[1]);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   // =========================
-  // Uniformy (cache)
+  // Uniforms (cache)
   // =========================
   const uInit = { seed: U(progInit, 'u_seed') };
 
   const uPhys = {
-    state: U(progPhys,'u_state'),
-    k0:    U(progPhys,'u_k0'),
-    k1:    U(progPhys,'u_k1'),
-    field: U(progPhys,'u_field'),
-    fieldRaw: U(progPhys,'u_fieldRaw'),
+    state: U(progPhys,'u_state'), k0: U(progPhys,'u_k0'), k1: U(progPhys,'u_k1'),
+    field: U(progPhys,'u_field'), fieldRaw: U(progPhys,'u_fieldRaw'),
     fieldTexel: U(progPhys,'u_fieldTexel'),
-
-    tm:    U(progPhys,'u_tm'),
-    frame: U(progPhys,'u_frame'),
-
-    kernelOn: U(progPhys,'u_kernelOn'),
-    fieldOn:  U(progPhys,'u_fieldOn'),
-    mouseOn:  U(progPhys,'u_mouseOn'),
-    chaosOn:  U(progPhys,'u_chaosOn'),
-    pumpOn:   U(progPhys,'u_pumpOn'),
-    exactIFS: U(progPhys,'u_exactIFS'),
-
-    grav:  U(progPhys,'u_grav'),
-    pump:  U(progPhys,'u_pump'),
-    charge: U(progPhys,'u_charge'),
-    pressure: U(progPhys,'u_pressure'),
-
-    mouse: U(progPhys,'u_mouse'),
-    mouseDown: U(progPhys,'u_mouseDown'),
+    tm: U(progPhys,'u_tm'), frame: U(progPhys,'u_frame'),
+    kernelOn: U(progPhys,'u_kernelOn'), fieldOn: U(progPhys,'u_fieldOn'),
+    mouseOn: U(progPhys,'u_mouseOn'), chaosOn: U(progPhys,'u_chaosOn'),
+    pumpOn: U(progPhys,'u_pumpOn'), exactIFS: U(progPhys,'u_exactIFS'),
+    grav: U(progPhys,'u_grav'), pump: U(progPhys,'u_pump'),
+    charge: U(progPhys,'u_charge'), pressure: U(progPhys,'u_pressure'),
+    mouse: U(progPhys,'u_mouse'), mouseDown: U(progPhys,'u_mouseDown'),
     mouseSign: U(progPhys,'u_mouseSign'),
-
-    damping: U(progPhys,'u_damping'),
-    force:   U(progPhys,'u_force'),
-    chaos:   U(progPhys,'u_chaos'),
-    bounds:  U(progPhys,'u_bounds'),
-
-    J:       U(progPhys,'u_J'),
-    ck0:     U(progPhys,'u_ck[0]'),
-    timeK:   U(progPhys,'u_timeK'),
-    timeMin: U(progPhys,'u_timeMin'),
-    kick:    U(progPhys,'u_kick'),
+    damping: U(progPhys,'u_damping'), force: U(progPhys,'u_force'),
+    chaos: U(progPhys,'u_chaos'), bounds: U(progPhys,'u_bounds'),
+    J: U(progPhys,'u_J'), ck0: U(progPhys,'u_ck[0]'),
+    timeK: U(progPhys,'u_timeK'), timeMin: U(progPhys,'u_timeMin'),
+    tempo: U(progPhys,'u_tempo'),
+    kick: U(progPhys,'u_kick'),
   };
 
   const uPts = {
-    state: U(progPts,'u_state'),
-    k0:    U(progPts,'u_k0'),
-    k1:    U(progPts,'u_k1'),
-    aspect:U(progPts,'u_aspect'),
-    scale: U(progPts,'u_scale'),
-    rot:   U(progPts,'u_rot'),
-    pan:   U(progPts,'u_pan'),
-    tm:    U(progPts,'u_tm'),
-    frame: U(progPts,'u_frame'),
-    kernelOn: U(progPts,'u_kernelOn'),
-    alphaMul: U(progPts,'u_alphaMul'),
+    state: U(progPts,'u_state'), k0: U(progPts,'u_k0'), k1: U(progPts,'u_k1'),
+    aspect: U(progPts,'u_aspect'), scale: U(progPts,'u_scale'),
+    rot: U(progPts,'u_rot'), pan: U(progPts,'u_pan'),
+    tm: U(progPts,'u_tm'), frame: U(progPts,'u_frame'),
+    kernelOn: U(progPts,'u_kernelOn'), alphaMul: U(progPts,'u_alphaMul'),
     exactIFS: U(progPts,'u_exactIFS'),
   };
 
   const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
-  const uBlit = { tex:  U(progBlit,'u_tex') };
-
+  const uBlit = { tex: U(progBlit,'u_tex') };
   const uFieldFade = { prev: U(progFieldFade,'u_prev'), fade: U(progFieldFade,'u_fade') };
 
   const uFieldDep = {
-    state: U(progFieldDep,'u_state'),
-    k0:    U(progFieldDep,'u_k0'),
-    k1:    U(progFieldDep,'u_k1'),
-    bounds:U(progFieldDep,'u_bounds'),
-    tm:    U(progFieldDep,'u_tm'),
-    frame: U(progFieldDep,'u_frame'),
-    kernelOn: U(progFieldDep,'u_kernelOn'),
+    state: U(progFieldDep,'u_state'), k0: U(progFieldDep,'u_k0'), k1: U(progFieldDep,'u_k1'),
+    bounds: U(progFieldDep,'u_bounds'), tm: U(progFieldDep,'u_tm'),
+    frame: U(progFieldDep,'u_frame'), kernelOn: U(progFieldDep,'u_kernelOn'),
     deposit: U(progFieldDep,'u_deposit'),
   };
 
   const uBlur = { tex: U(progBlur,'u_tex'), dir: U(progBlur,'u_dir') };
 
   // =========================
-  // TWIST konstanty (IFS)
+  // TWIST constants (IFS)
   // =========================
-  // J = 1 + exp(i*4π/5)
   const angJ = 4*Math.PI/5;
   const Jre = 1 + Math.cos(angJ);
   const Jim = Math.sin(angJ);
 
-  // ck[k] = (1 - J) * ω_k
   const oneMinusJ = { re: (1 - Jre), im: (0 - Jim) };
   const CK = new Float32Array(10);
   for(let k=0;k<5;k++){
@@ -1422,7 +1327,7 @@
   }
 
   // =========================
-  // Resize (canvas + trail)
+  // Resize
   // =========================
   let viewW=0, viewH=0, dpr=1;
   function resize(){
@@ -1438,7 +1343,6 @@
   }
   window.addEventListener('resize', resize);
 
-  // správně nastavíme velikost canvasu podle layoutu
   let needLayout = true;
   function layout(){
     const topH = document.body.classList.contains('ui-hidden') ? 0 : 44;
@@ -1451,12 +1355,13 @@
   layout();
 
   // =========================
-  // Myš v souřadnicích světa
+  // Mouse
   // =========================
-  let mouseNX = 0, mouseNY = 0; // -1..1 v obrazovce
+  let mouseNX = 0, mouseNY = 0;
   let mx=0, my=0, mDown=0;
-  let viewRot = 0.0; // radiany, rotace pohledu
-  let panX = 0, panY = 0;  // posun kamery (NDC)
+  let viewRot = 0.0;
+  let panX = 0, panY = 0;
+  let prevScale = parseFloat(ui.scale.value);
   let isPanning = false;
   let panStartNX = 0, panStartNY = 0;
   let panStartX = 0, panStartY = 0;
@@ -1495,7 +1400,6 @@
     e.preventDefault();
     const dy = e.deltaY;
 
-    // Shift+kolecko = rotace pohledu
     if (e.shiftKey) {
       viewRot += dy * 0.0025;
       if (viewRot > Math.PI) viewRot -= 2 * Math.PI;
@@ -1503,27 +1407,34 @@
       return;
     }
 
-    // Kolecko = meritko (zoom)
     const min = parseFloat(ui.scale.min);
     const max = parseFloat(ui.scale.max);
     const s   = parseFloat(ui.scale.value);
     const factor = Math.exp(-dy * 0.001);
-    let ns = s * factor;
-    ns = Math.min(max, Math.max(min, ns));
+    let ns = Math.min(max, Math.max(min, s * factor));
+
+    // zoom smerem ke kurzoru: bod pod kurzorem zustane na miste
+    const rect = canvas.getBoundingClientRect();
+    const cx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const cy = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    const r = ns / s;
+    panX = cx * (1 - r) + panX * r;
+    panY = cy * (1 - r) + panY * r;
+    prevScale = ns;
+
     ui.scale.value = ns.toFixed(2);
   }, { passive: false });
 
   // =========================
-  // Dotyk (touch)
+  // Touch
   // =========================
   let touchCount = 0;
   let prevPinchDist = 0;
   let prevPinchAngle = 0;
-  let prevTouchCX = 0, prevTouchCY = 0;  // predchozi stred dvou prstu
+  let prevTouchCX = 0, prevTouchCY = 0;
 
   function touchCenter(t0, t1){
-    return { x: (t0.clientX + t1.clientX) / 2,
-             y: (t0.clientY + t1.clientY) / 2 };
+    return { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
   }
   function touchDist(t0, t1){
     const dx = t1.clientX - t0.clientX;
@@ -1567,17 +1478,24 @@
       const angle = touchAngle(e.touches[0], e.touches[1]);
       const center = touchCenter(e.touches[0], e.touches[1]);
 
-      // pinch = zoom
       if(prevPinchDist > 0){
+        const oldS = parseFloat(ui.scale.value);
         const ratio = dist / prevPinchDist;
         const min = parseFloat(ui.scale.min);
         const max = parseFloat(ui.scale.max);
-        let s = parseFloat(ui.scale.value) * ratio;
-        s = Math.min(max, Math.max(min, s));
-        ui.scale.value = s.toFixed(2);
+        let ns = Math.min(max, Math.max(min, oldS * ratio));
+        ui.scale.value = ns.toFixed(2);
+
+        // zoom smerem ke stredu pinche
+        const rect = canvas.getBoundingClientRect();
+        const cx = ((center.x - rect.left) / rect.width) * 2 - 1;
+        const cy = -(((center.y - rect.top) / rect.height) * 2 - 1);
+        const r = ns / oldS;
+        panX = cx * (1 - r) + panX * r;
+        panY = cy * (1 - r) + panY * r;
+        prevScale = ns;
       }
 
-      // rotace dvema prsty
       let da = angle - prevPinchAngle;
       if(da > Math.PI) da -= 2 * Math.PI;
       if(da < -Math.PI) da += 2 * Math.PI;
@@ -1585,7 +1503,6 @@
       if(viewRot > Math.PI) viewRot -= 2 * Math.PI;
       if(viewRot < -Math.PI) viewRot += 2 * Math.PI;
 
-      // posun dvema prsty (pan)
       const rect = canvas.getBoundingClientRect();
       const dx = (center.x - prevTouchCX) / rect.width * 2;
       const dy = -(center.y - prevTouchCY) / rect.height * 2;
@@ -1628,7 +1545,7 @@
   function thueMorse32(v){ return popcount32(v>>>0) & 1; }
 
   // =========================
-  // Reset / pauza
+  // Reset / pause
   // =========================
   let seed = (Math.random()*1e9)>>>0;
   let frame = 0;
@@ -1636,11 +1553,10 @@
   let fieldFlip = 0;
   let paused = false;
   let prevFieldOn = true;
-  let kickFrames = 0;  // odpocet snimku s nahodnym impulzem
+  let kickFrames = 0;
 
-  // PŘESNÝ auto-zoom
   let prevExact = false;
-  let savedScale = null;  // zachovany zoom pred PŘESNÝM
+  let savedScale = null;
 
   function reset(){
     seed = (Math.random()*1e9)>>>0;
@@ -1652,15 +1568,16 @@
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    clearField();
+    // pole zachovat: nove castice se okamzite chyti existujicich gradientu
     makeTrailTargets(viewW, viewH);
 
     partFlip = 0;
-    fieldFlip = 0;
+    // fieldFlip zachovan: pole bezi dal
     trailFlip = 0;
     frame = 0;
     viewRot = 0.0;
     panX = 0; panY = 0;
+    prevScale = parseFloat(ui.scale.value);
     ui.spin.value = '0.000';
   }
 
@@ -1669,9 +1586,10 @@
     tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglExact: false,
     mouseRepel: false,
     particles: '19', damping: '0.677', force: '0.3', chaos: '1.86',
-    fade: '0.69', scale: '0.65', spin: '0.000',
+    fade: '0.69', scale: '0.65', spin: '0.000', tempo: '1.00',
     ffield: '0.929', deposit: '3', grav: '1', pressure: '1.93',
     timeK: '38', timeMin: '0.07', charge: '5', pump: '0.099',
+    tempo: '1.00',
   };
 
   function restoreDefaults(){
@@ -1688,6 +1606,8 @@
       if(ui[k] && ui[k].type === 'range') ui[k].value = v;
     }
     syncUI();
+    clearField();
+    fieldFlip = 0;
     reset();
   }
 
@@ -1698,15 +1618,14 @@
     document.getElementById('pause').innerHTML = paused ? "POKRAČOVAT <small>(SPC)</small>" : "PAUZA <small>(SPC)</small>";
   });
 
-  // double-click na ROTACE slider = stop
   ui.spin.addEventListener('dblclick', () => { ui.spin.value = '0.000'; });
+  ui.tempo.addEventListener('dblclick', () => { ui.tempo.value = '1.00'; });
 
   // =========================
-  // Klávesy
+  // Keyboard
   // =========================
   const helpEl = document.getElementById('helpOverlay');
 
-  // klik mimo help zavre
   helpEl.addEventListener('click', (e) => {
     if(e.target === helpEl) helpEl.classList.remove('show');
   });
@@ -1717,28 +1636,23 @@
     const step = parseFloat(slider.step) || 0.001;
     let v = parseFloat(slider.value) + delta * step;
     v = Math.min(max, Math.max(min, v));
-    // match slider precision
     const dec = (slider.step.split('.')[1] || '').length;
     slider.value = v.toFixed(dec);
   }
 
   window.addEventListener('keydown', (e) => {
-    // ignore when typing in inputs
     if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
     const k = e.key;
-    const S = 5; // nudge multiplier for sliders
+    const S = 5;
 
     switch(k){
-      // === HELP ===
       case 'h': case 'H':
         helpEl.classList.toggle('show');
         break;
       case 'Escape':
         helpEl.classList.remove('show');
         break;
-
-      // === UI VIDITELNOST ===
       case 'u': case 'U':
         document.body.classList.toggle('ui-hidden');
         needLayout = true;
@@ -1750,8 +1664,6 @@
       case 'c': case 'C':
         shareURL();
         break;
-
-      // === TOGGLES ===
       case ' ':
         e.preventDefault();
         paused = !paused;
@@ -1788,11 +1700,8 @@
         syncUI();
         break;
       case 'm': case 'M':
-        if(ui.mouseRepel.checked){
-          ui.mouseAttract.checked = true;
-        } else {
-          ui.mouseRepel.checked = true;
-        }
+        if(ui.mouseRepel.checked) ui.mouseAttract.checked = true;
+        else ui.mouseRepel.checked = true;
         syncUI();
         break;
       case 'p':
@@ -1801,8 +1710,6 @@
       case 'n':
         nudge(ui.particles, -S);
         break;
-
-      // === CAMERA ===
       case '+': case '=':
         nudge(ui.scale, S * 5);
         break;
@@ -1822,8 +1729,6 @@
         panX = 0; panY = 0;
         ui.spin.value = '0.000';
         break;
-
-      // === PHYSICS ===
       case 'ArrowUp':
         e.preventDefault();
         nudge(ui.grav, S);
@@ -1898,6 +1803,12 @@
       case 'l':
         nudge(ui.ffield, S);
         break;
+      case 'j':
+        nudge(ui.tempo, -S);
+        break;
+      case 'y':
+        nudge(ui.tempo, S);
+        break;
     }
   });
 
@@ -1913,7 +1824,7 @@
   gl.disable(gl.CULL_FACE);
 
   // =========================
-  // Hlavní smyčka
+  // Main loop
   // =========================
   function loop(){
     if(needLayout) layout();
@@ -1935,7 +1846,6 @@
     tmEl.textContent = String(tm);
     document.getElementById('rotv').textContent = String(Math.round(viewRot * 180 / Math.PI));
 
-    // auto-rotace
     const spinSpeed = parseFloat(ui.spin.value);
     if (Math.abs(spinSpeed) > 0.0001) {
       viewRot += spinSpeed;
@@ -1949,7 +1859,6 @@
     const chaosOn  = ui.tglChaos.checked  ? 1 : 0;
     const pumpOn   = (ui.tglPump.checked && kernelOn) ? 1 : 0;
 
-    // myš režim: odpuz = +1, tahni = -1
     const mouseSign = ui.mouseAttract.checked ? -1.0 : 1.0;
 
     const damping = parseFloat(ui.damping.value);
@@ -1957,6 +1866,14 @@
     const chaos   = parseFloat(ui.chaos.value);
     const fade    = parseFloat(ui.fade.value);
     const scale   = parseFloat(ui.scale.value);
+
+    // kompenzace posunu pri zmene meritka: zachovat stred pohledu
+    if(prevScale > 0.001 && Math.abs(scale - prevScale) > 0.0001){
+      const ratio = scale / prevScale;
+      panX *= ratio;
+      panY *= ratio;
+    }
+    prevScale = scale;
 
     const ffield  = parseFloat(ui.ffield.value);
     const deposit = parseFloat(ui.deposit.value);
@@ -1966,14 +1883,14 @@
     const timeK   = parseFloat(ui.timeK.value);
     const timeMin = parseFloat(ui.timeMin.value);
     const charge  = parseFloat(ui.charge.value);
+    const tempo   = parseFloat(ui.tempo.value);
 
-    // pocet aktivnich castic (2^slider)
     activeN = Math.min(N, 1 << parseInt(ui.particles.value));
     pcEl.textContent = activeN.toLocaleString();
 
     const bounds = 2.2;
 
-    // prepocti mys do svetovych souradnic kazdy snimek
+    // mouse -> world coords
     {
       const aspect = viewW / viewH;
       mx = ((mouseNX - panX) * aspect) / Math.max(0.001, scale);
@@ -1986,39 +1903,26 @@
       my = wy;
     }
 
-    // pole se pocita vzdy (aby bylo ready pri zapnuti)
-    // fieldOn ridi jen SILY z pole (gravitace, tlak, naboj, cas)
-
-    // prechod pole off->on: vycisti pole + nakopni castice
+    // pole off->on transition
     if(fieldOn === 1 && !prevFieldOn){
       clearField();
-      kickFrames = 180; // 3 sekundy postupneho rozptylu
+      kickFrames = 180;
     }
     prevFieldOn = (fieldOn === 1);
     if(kickFrames > 0) kickFrames--;
 
-    // PŘESNÝ auto-zoom
+    // exact IFS auto-zoom
     const exactOn = ui.tglExact.checked;
     if(exactOn && !prevExact){
-      // prave zapnuto: uloz aktualni zoom, vycisti stopu
       savedScale = parseFloat(ui.scale.value);
-
-      // analyticka velikost atraktoru:
-      // fixed points are ω_k (roots of unity), |ω_k| = 1
-      // attractor radius ≈ max|c_k| / (1 - |J|)
-      // |J| = |1 + ζ₅²| = 1/φ ≈ 0.618, 1-|J| ≈ 0.382
-      // |c_k| = |1-J|·|ω_k| = |1-J|, all same
       const absJ = Math.sqrt(Jre*Jre + Jim*Jim);
       const absOneMinusJ = Math.sqrt(oneMinusJ.re*oneMinusJ.re + oneMinusJ.im*oneMinusJ.im);
-      const attractorR = absOneMinusJ / (1.0 - absJ);  // ≈ 2.6
-      // zoom aby atraktor vyplnil ~70% obrazovky
-      const autoScale = Math.min(0.7 / attractorR, 80.0);
+      const attractorR = absOneMinusJ / (1.0 - absJ);
+      const autoScale = Math.min(0.7 / attractorR, 5.0);
       ui.scale.value = autoScale.toFixed(2);
-
       clearTrail();
     }
     if(!exactOn && prevExact && savedScale !== null){
-      // prave vypnuto: obnov puvodni zoom, vycisti stopu
       ui.scale.value = savedScale.toFixed(2);
       savedScale = null;
       clearTrail();
@@ -2026,25 +1930,21 @@
     prevExact = exactOn;
 
     // =========================
-    // 0) POLE: fade + depozit + blur (bezi vzdy)
+    // 0) Field: fade + deposit + blur
     // =========================
     {
       const fieldWrite = 1 - fieldFlip;
 
-      // fade do fieldTex[fieldWrite]
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldWrite]);
       gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
       gl.useProgram(progFieldFade);
-
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldFlip]);
       gl.uniform1i(uFieldFade.prev, 0);
       gl.uniform1f(uFieldFade.fade, ffield);
-
       gl.bindVertexArray(vaoQuad);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      // depozit (aditivně) do stejného FBO
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
 
@@ -2053,7 +1953,7 @@
       gl.uniform1i(uFieldDep.tm, tm);
       gl.uniform1ui(uFieldDep.frame, frame>>>0);
       gl.uniform1i(uFieldDep.kernelOn, kernelOn);
-      gl.uniform1f(uFieldDep.deposit, deposit * (1.0 - ffield) * (FIELD_SIZE * FIELD_SIZE) / activeN);
+      gl.uniform1f(uFieldDep.deposit, deposit * Math.max(1.0 - ffield, 0.005) * (FIELD_SIZE * FIELD_SIZE) / activeN);
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
@@ -2067,32 +1967,25 @@
 
       gl.bindVertexArray(vaoEmpty);
       gl.drawArrays(gl.POINTS, 0, activeN);
-
       gl.disable(gl.BLEND);
 
-      // blur X -> temp
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboTemp);
       gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
       gl.useProgram(progBlur);
-
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldWrite]);
       gl.uniform1i(uBlur.tex, 0);
       gl.uniform2f(uBlur.dir, 1.0/FIELD_SIZE, 0.0);
-
       gl.bindVertexArray(vaoQuad);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      // blur Y -> fieldBlur[fieldWrite]
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboBlur[fieldWrite]);
       gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
       gl.useProgram(progBlur);
-
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, fieldTemp);
       gl.uniform1i(uBlur.tex, 0);
       gl.uniform2f(uBlur.dir, 0.0, 1.0/FIELD_SIZE);
-
       gl.bindVertexArray(vaoQuad);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -2100,7 +1993,7 @@
     }
 
     // =========================
-    // 1) KROK (kernel + obal)
+    // 1) Physics step
     // =========================
     const activeRows = Math.min(TEX_SIZE, Math.ceil(activeN / TEX_SIZE));
     gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[1-partFlip]);
@@ -2109,7 +2002,6 @@
 
     gl.uniform1i(uPhys.tm, tm);
     gl.uniform1ui(uPhys.frame, frame>>>0);
-
     gl.uniform1i(uPhys.kernelOn, kernelOn);
     gl.uniform1i(uPhys.fieldOn,  fieldOn);
     gl.uniform1i(uPhys.mouseOn,  mouseOn);
@@ -2134,13 +2026,12 @@
     gl.uniform2f(uPhys.fieldTexel, 1.0/FIELD_SIZE, 1.0/FIELD_SIZE);
     gl.uniform1f(uPhys.timeK, fieldOn ? timeK : 0.0);
     gl.uniform1f(uPhys.timeMin, timeMin);
+    gl.uniform1f(uPhys.tempo, tempo);
 
-    // kick: silny klesajici impuls pri prechodu pole off->on
     const kickRatio = kickFrames > 0 ? kickFrames / 180.0 : 0.0;
     const kickStr = kickRatio * 0.05;
     gl.uniform1f(uPhys.kick, kickStr);
 
-    // behem kicku: zeslabit pruzinu a tlumeni aby se castice rozptylily
     const forceEff = kickFrames > 0 ? force * (1.0 - 0.9 * kickRatio) : force;
     const dampEff  = kickFrames > 0 ? Math.min(damping, 0.5 + 0.5 * (1.0 - kickRatio)) : damping;
     gl.uniform1f(uPhys.damping, dampEff);
@@ -2155,11 +2046,9 @@
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]);
     gl.uniform1i(uPhys.k1, 2);
-
     gl.activeTexture(gl.TEXTURE3);
     gl.bindTexture(gl.TEXTURE_2D, fieldBlur[fieldFlip]);
     gl.uniform1i(uPhys.field, 3);
-
     gl.activeTexture(gl.TEXTURE4);
     gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldFlip]);
     gl.uniform1i(uPhys.fieldRaw, 4);
@@ -2170,22 +2059,20 @@
     partFlip = 1 - partFlip;
 
     // =========================
-    // 2) STOPA: fade (trail)
+    // 2) Trail: fade
     // =========================
     gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo[1-trailFlip]);
     gl.viewport(0,0,viewW,viewH);
     gl.useProgram(progFade);
-
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, trailTex[trailFlip]);
     gl.uniform1i(uFade.prev, 0);
     gl.uniform1f(uFade.fade, exactOn ? 1.0 : fade);
-
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     // =========================
-    // 3) Body do stopy (aditivně)
+    // 3) Points into trail (additive)
     // =========================
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
@@ -2213,30 +2100,27 @@
 
     gl.bindVertexArray(vaoEmpty);
     gl.drawArrays(gl.POINTS, 0, activeN);
-
     gl.disable(gl.BLEND);
 
     // =========================
-    // 4) Blit na obrazovku
+    // 4) Blit to screen
     // =========================
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0,0,viewW,viewH);
     gl.useProgram(progBlit);
-
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, trailTex[1-trailFlip]);
     gl.uniform1i(uBlit.tex, 0);
-
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     trailFlip = 1 - trailFlip;
 
     // =========================
-    // §85 histogram: z a i distribuce (1x za sekundu)
+    // Histogram
     // =========================
     if(kernelOn && frame > 0 && (frame & 63) === 0){
-      const SAMPLE = 256; // vzorkuj 1 radek
+      const SAMPLE = 256;
       const k0buf = new Float32Array(SAMPLE * 4);
       const k1buf = new Float32Array(SAMPLE * 4);
 
