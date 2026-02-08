@@ -33,6 +33,16 @@
   }
   .panel::-webkit-scrollbar{ width:4px; }
   .panel::-webkit-scrollbar-thumb{ background:#1e1e28; border-radius:2px; }
+  .btn-bar{
+    pointer-events:auto;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:6px;
+    margin-bottom:6px;
+  }
+  @media(min-width:500px){
+    .btn-bar{ display:flex; gap:10px; flex-wrap:wrap; }
+  }
   .credit{
     position:absolute; bottom:4px; right:14px;
     font-size:8px; color:#2a2a36; pointer-events:none; letter-spacing:1px;
@@ -134,6 +144,14 @@
         </div>
       </div>
 
+      <div class="btn-bar">
+        <button id="panelHide">SKRÝT <small>(TAB)</small></button>
+        <button id="reset">RESET <small>(R)</small></button>
+        <button id="defaults">VÝCHOZÍ <small>(B)</small></button>
+        <button id="pause">PAUZA <small>(SPC)</small></button>
+        <button id="share">SDÍLET <small>(C)</small></button>
+      </div>
+
       <div id="slidersWrap">
       <div class="row" id="rowParticles">
         <label>ČÁSTICE <small>(P/N)</small></label>
@@ -209,14 +227,6 @@
         <label>POHON <small>(T G)</small></label>
         <input id="pump" type="range" min="0.000" max="0.100" step="0.001" value="0.069" />
       </div>
-      </div>
-
-      <div style="display:flex; gap:10px; pointer-events:auto; flex-wrap:wrap;">
-        <button id="panelHide">SKRÝT <small>(TAB)</small></button>
-        <button id="reset">RESET <small>(R)</small></button>
-        <button id="defaults">VÝCHOZÍ <small>(B)</small></button>
-        <button id="pause">PAUZA <small>(SPC)</small></button>
-        <button id="share">SDÍLET <small>(C)</small></button>
       </div>
     </div>
 
