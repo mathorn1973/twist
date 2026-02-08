@@ -411,12 +411,12 @@
     for(const [k, id] of SLIDER_MAP){
       parts.push(k + ui[id].value);
     }
-    return parts.join('.');
+    return parts.join('~');
   }
 
   function decodeSettings(hash){
     if(!hash) return;
-    const parts = hash.split('.');
+    const parts = hash.split('~');
     for(const p of parts){
       // toggles: K1F1X1C1P0
       if(p.length > 4 && /^[KFXCP][01]/.test(p)){
