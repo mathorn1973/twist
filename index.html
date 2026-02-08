@@ -252,7 +252,8 @@
       <h3>KAMERA</h3>
       <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
       <div class="krow"><span class="kk">← / →</span><span>rotace (auto-spin)</span></div>
-      <div class="krow"><span class="kk">0</span><span>reset rotace + spin</span></div>
+      <div class="krow"><span class="kk">0</span><span>reset rotace + posun + spin</span></div>
+      <div class="krow"><span class="kk">Shift+tažení</span><span>posun kamery (pan)</span></div>
       <h3>FYZIKA</h3>
       <div class="krow"><span class="kk">↑ / ↓</span><span>gravitace</span></div>
       <div class="krow"><span class="kk">[ / ]</span><span>tlumení</span></div>
@@ -1124,6 +1125,7 @@
   uniform float u_aspect;
   uniform float u_scale;
   uniform float u_rot;
+  uniform vec2  u_pan;
 
   uniform int  u_tm;
   uniform uint u_frame;
@@ -1187,7 +1189,7 @@
     float s = sin(u_rot);
     vec2 rp = vec2(c*pos.x - s*pos.y, s*pos.x + c*pos.y);
 
-    gl_Position = vec4((rp.x / u_aspect) * u_scale, rp.y * u_scale, 0.0, 1.0);
+    gl_Position = vec4((rp.x / u_aspect) * u_scale + u_pan.x, rp.y * u_scale + u_pan.y, 0.0, 1.0);
     gl_PointSize = (u_exactIFS == 1) ? 2.0 : 1.0;
   }`;
 
@@ -1373,6 +1375,7 @@
     aspect:U(progPts,'u_aspect'),
     scale: U(progPts,'u_scale'),
     rot:   U(progPts,'u_rot'),
+    pan:   U(progPts,'u_pan'),
     tm:    U(progPts,'u_tm'),
     frame: U(progPts,'u_frame'),
     kernelOn: U(progPts,'u_kernelOn'),
@@ -1453,19 +1456,40 @@
   let mouseNX = 0, mouseNY = 0; // -1..1 v obrazovce
   let mx=0, my=0, mDown=0;
   let viewRot = 0.0; // radiany, rotace pohledu
+  let panX = 0, panY = 0;  // posun kamery (NDC)
+  let isPanning = false;
+  let panStartNX = 0, panStartNY = 0;
+  let panStartX = 0, panStartY = 0;
 
   function updateMouse(e){
     const rect = canvas.getBoundingClientRect();
-    mouseNX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseNY = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+
+    if(isPanning){
+      panX = panStartX + (nx - panStartNX);
+      panY = panStartY + (ny - panStartNY);
+      return;
+    }
+    mouseNX = nx;
+    mouseNY = ny;
   }
   window.addEventListener('mousemove', updateMouse);
 
   window.addEventListener('mousedown', (e) => {
-    // only interact when clicking on canvas
-    if(e.target === canvas) mDown = 1;
+    if(e.target !== canvas) return;
+    if(e.shiftKey){
+      isPanning = true;
+      const rect = canvas.getBoundingClientRect();
+      panStartNX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      panStartNY = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+      panStartX = panX;
+      panStartY = panY;
+    } else {
+      mDown = 1;
+    }
   });
-  window.addEventListener('mouseup', ()=> mDown=0);
+  window.addEventListener('mouseup', ()=>{ mDown=0; isPanning=false; });
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -1495,6 +1519,7 @@
   let touchCount = 0;
   let prevPinchDist = 0;
   let prevPinchAngle = 0;
+  let prevTouchCX = 0, prevTouchCY = 0;  // predchozi stred dvou prstu
 
   function touchCenter(t0, t1){
     return { x: (t0.clientX + t1.clientX) / 2,
@@ -1524,6 +1549,9 @@
       mDown = 0;
       prevPinchDist = touchDist(e.touches[0], e.touches[1]);
       prevPinchAngle = touchAngle(e.touches[0], e.touches[1]);
+      const c = touchCenter(e.touches[0], e.touches[1]);
+      prevTouchCX = c.x;
+      prevTouchCY = c.y;
     }
   }, { passive: false });
 
@@ -1537,6 +1565,7 @@
       mDown = 0;
       const dist = touchDist(e.touches[0], e.touches[1]);
       const angle = touchAngle(e.touches[0], e.touches[1]);
+      const center = touchCenter(e.touches[0], e.touches[1]);
 
       // pinch = zoom
       if(prevPinchDist > 0){
@@ -1556,8 +1585,17 @@
       if(viewRot > Math.PI) viewRot -= 2 * Math.PI;
       if(viewRot < -Math.PI) viewRot += 2 * Math.PI;
 
+      // posun dvema prsty (pan)
+      const rect = canvas.getBoundingClientRect();
+      const dx = (center.x - prevTouchCX) / rect.width * 2;
+      const dy = -(center.y - prevTouchCY) / rect.height * 2;
+      panX += dx;
+      panY += dy;
+
       prevPinchDist = dist;
       prevPinchAngle = angle;
+      prevTouchCX = center.x;
+      prevTouchCY = center.y;
     }
   }, { passive: false });
 
@@ -1622,6 +1660,7 @@
     trailFlip = 0;
     frame = 0;
     viewRot = 0.0;
+    panX = 0; panY = 0;
     ui.spin.value = '0.000';
   }
 
@@ -1780,6 +1819,7 @@
         break;
       case '0':
         viewRot = 0.0;
+        panX = 0; panY = 0;
         ui.spin.value = '0.000';
         break;
 
@@ -1936,8 +1976,8 @@
     // prepocti mys do svetovych souradnic kazdy snimek
     {
       const aspect = viewW / viewH;
-      mx = (mouseNX * aspect) / Math.max(0.001, scale);
-      my = (mouseNY) / Math.max(0.001, scale);
+      mx = ((mouseNX - panX) * aspect) / Math.max(0.001, scale);
+      my = ((mouseNY - panY)) / Math.max(0.001, scale);
       const c = Math.cos(-viewRot);
       const s = Math.sin(-viewRot);
       const wx = c * mx - s * my;
@@ -2154,6 +2194,7 @@
     gl.uniform1f(uPts.aspect, viewW / viewH);
     gl.uniform1f(uPts.scale, scale);
     gl.uniform1f(uPts.rot, viewRot);
+    gl.uniform2f(uPts.pan, panX, panY);
     gl.uniform1i(uPts.tm, tm);
     gl.uniform1ui(uPts.frame, frame>>>0);
     gl.uniform1i(uPts.kernelOn, kernelOn);
