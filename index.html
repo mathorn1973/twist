@@ -199,6 +199,11 @@
         <input id="spin" type="range" min="-0.050" max="0.050" step="0.001" value="0.000" />
       </div>
 
+      <div class="row" id="rowPalette">
+        <label>BARVY <small>(7 8)</small></label>
+        <input id="palette" type="range" min="0" max="8" step="1" value="1" />
+      </div>
+
       <div class="row" id="rowFieldFade">
         <label>POLE FADE <small>(O L)</small></label>
         <input id="ffield" type="range" min="0.50" max="1.000" step="0.001" value="0.929" />
@@ -254,6 +259,7 @@
       <div class="krow"><span class="kk">6</span><span>PŘESNÝ IFS on/off (kanonický krok)</span></div>
       <div class="krow"><span class="kk">M</span><span>myš: odpuz / tahni</span></div>
       <div class="krow"><span class="kk">P / N</span><span>více / méně částic</span></div>
+      <div class="krow"><span class="kk">7 / 8</span><span>barvy (paleta)</span></div>
       <h3>KAMERA</h3>
       <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
       <div class="krow"><span class="kk">← / →</span><span>rotace (auto-spin)</span></div>
@@ -324,6 +330,7 @@
     timeMin: document.getElementById('timeMin'),
     charge:  document.getElementById('charge'),
     particles: document.getElementById('particles'),
+    palette: document.getElementById('palette'),
     tempo: document.getElementById('tempo'),
 
     rowMouseMode: document.getElementById('rowMouseMode'),
@@ -406,7 +413,7 @@
     ['ff', 'ffield'],    ['de', 'deposit'],  ['gr', 'grav'],
     ['pr', 'pressure'],  ['tk', 'timeK'],    ['tm', 'timeMin'],
     ['qa', 'charge'],    ['pu', 'pump'],     ['pa', 'particles'],
-    ['te', 'tempo'],
+    ['te', 'tempo'],    ['pl', 'palette'],
   ];
 
   const TOGGLE_MAP = [
@@ -669,10 +676,22 @@
   precision highp float;
   in vec2 v_uv;
   uniform sampler2D u_tex;
+  uniform int u_palette;
   out vec4 o_col;
   void main(){
     vec3 c = texture(u_tex, v_uv).rgb;
+    // Reinhard tonemap
     c = c / (1.0 + c);
+
+    if(u_palette >= 6){
+      // saturace: vytahni barvy od sedi
+      float lum = dot(c, vec3(0.299, 0.587, 0.114));
+      float sat = (u_palette >= 8) ? 4.0 : (u_palette >= 7) ? 3.0 : 2.2;
+      c = max(vec3(0.0), lum + (c - lum) * sat);
+      // gamma: projasnit stredni tony
+      c = pow(c, vec3(0.75));
+    }
+
     o_col = vec4(c, 1.0);
   }`;
 
@@ -1137,28 +1156,102 @@
   uniform float u_scale;
   uniform float u_alphaMul;
   uniform int u_exactIFS;
+  uniform int u_palette;
   out vec4 o_col;
+
+  vec3 pal(int z, int p){
+    // 0: duch (jemny monochrom, ale s naznakem barvy)
+    if(p==0){
+      if(z==0) return vec3(0.65, 0.55, 0.50);
+      if(z==1) return vec3(0.60, 0.58, 0.48);
+      if(z==2) return vec3(0.48, 0.62, 0.52);
+      if(z==3) return vec3(0.48, 0.52, 0.65);
+      return        vec3(0.55, 0.62, 0.65);
+    }
+    // 1: uhliky (default)
+    if(p==1){
+      if(z==0) return vec3(0.95, 0.30, 0.12);
+      if(z==1) return vec3(0.95, 0.72, 0.12);
+      if(z==2) return vec3(0.15, 0.90, 0.40);
+      if(z==3) return vec3(0.30, 0.50, 1.00);
+      return        vec3(0.10, 0.85, 1.00);
+    }
+    // 2: ocean (studene spektrum)
+    if(p==2){
+      if(z==0) return vec3(0.10, 0.18, 0.55);
+      if(z==1) return vec3(0.05, 0.45, 0.70);
+      if(z==2) return vec3(0.10, 0.72, 0.65);
+      if(z==3) return vec3(0.30, 0.85, 0.85);
+      return        vec3(0.60, 0.95, 1.00);
+    }
+    // 3: zeme (teple tony)
+    if(p==3){
+      if(z==0) return vec3(0.70, 0.25, 0.10);
+      if(z==1) return vec3(0.85, 0.60, 0.15);
+      if(z==2) return vec3(0.30, 0.60, 0.12);
+      if(z==3) return vec3(0.18, 0.45, 0.22);
+      return        vec3(0.75, 0.50, 0.25);
+    }
+    // 4: infrared (tepelna mapa)
+    if(p==4){
+      if(z==0) return vec3(0.18, 0.0, 0.35);
+      if(z==1) return vec3(0.65, 0.0, 0.45);
+      if(z==2) return vec3(1.00, 0.25, 0.05);
+      if(z==3) return vec3(1.00, 0.72, 0.10);
+      return        vec3(1.00, 1.00, 0.70);
+    }
+    // 5: pastel
+    if(p==5){
+      if(z==0) return vec3(1.00, 0.55, 0.60);
+      if(z==1) return vec3(1.00, 0.80, 0.50);
+      if(z==2) return vec3(0.55, 1.00, 0.65);
+      if(z==3) return vec3(0.50, 0.65, 1.00);
+      return        vec3(0.80, 0.55, 1.00);
+    }
+    // 6: neon
+    if(p==6){
+      if(z==0) return vec3(1.00, 0.05, 0.30);
+      if(z==1) return vec3(1.00, 0.92, 0.0);
+      if(z==2) return vec3(0.0, 1.00, 0.30);
+      if(z==3) return vec3(0.20, 0.35, 1.00);
+      return        vec3(0.0, 1.00, 1.00);
+    }
+    // 7: acid
+    if(p==7){
+      if(z==0) return vec3(0.85, 1.00, 0.0);
+      if(z==1) return vec3(0.0, 1.00, 0.15);
+      if(z==2) return vec3(1.00, 0.0, 0.75);
+      if(z==3) return vec3(0.0, 0.85, 1.00);
+      return        vec3(1.00, 0.45, 0.0);
+    }
+    // 8: psycho
+    if(z==0) return vec3(1.00, 0.0, 0.0);
+    if(z==1) return vec3(1.00, 1.00, 0.0);
+    if(z==2) return vec3(0.0, 1.00, 0.0);
+    if(z==3) return vec3(0.0, 0.0, 1.00);
+    return      vec3(1.00, 0.0, 1.00);
+  }
+
   void main(){
     float e = clamp(v_speed * 28.0, 0.0, 1.0);
 
-    // 5 barev pro 5 z-hodnot
-    vec3 c;
     int z = int(v_z + 0.5);
-    if(z == 0)      c = vec3(0.95, 0.30, 0.12);  // ohen
-    else if(z == 1) c = vec3(0.95, 0.72, 0.12);  // zlato
-    else if(z == 2) c = vec3(0.15, 0.90, 0.40);  // smaragd
-    else if(z == 3) c = vec3(0.30, 0.50, 1.00);  // kobalt
-    else            c = vec3(0.10, 0.85, 1.00);  // azur (gyron)
+    vec3 c = pal(z, u_palette);
+
+    // palety 6+ jsou "zive": zadne tlumeni rychlosti, vyssi alfa
+    bool vivid = (u_palette >= 6);
 
     if(u_exactIFS == 1){
       if(v_gyron > 0.5) c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
-      float alpha = 0.008 * u_alphaMul;
-      o_col = vec4(c, clamp(alpha, 0.001, 0.1));
+      float alpha = (vivid ? 0.02 : 0.008) * u_alphaMul;
+      o_col = vec4(c, clamp(alpha, 0.001, 0.15));
     } else {
-      c = mix(c*0.25, c, e);
+      if(!vivid) c = mix(c*0.55, c, e);
       if(v_gyron > 0.5) c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
-      float alpha = 0.14 * u_scale * u_scale * u_alphaMul;
-      o_col = vec4(c, clamp(alpha, 0.001, 0.20));
+      float alpha = vivid
+        ? 0.35 * u_scale * u_scale * u_alphaMul
+        : 0.14 * u_scale * u_scale * u_alphaMul;
+      o_col = vec4(c, clamp(alpha, 0.001, vivid ? 0.50 : 0.20));
     }
   }`;
 
@@ -1293,10 +1386,11 @@
     tm: U(progPts,'u_tm'), frame: U(progPts,'u_frame'),
     kernelOn: U(progPts,'u_kernelOn'), alphaMul: U(progPts,'u_alphaMul'),
     exactIFS: U(progPts,'u_exactIFS'),
+    palette: U(progPts,'u_palette'),
   };
 
   const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
-  const uBlit = { tex: U(progBlit,'u_tex') };
+  const uBlit = { tex: U(progBlit,'u_tex'), palette: U(progBlit,'u_palette') };
   const uFieldFade = { prev: U(progFieldFade,'u_prev'), fade: U(progFieldFade,'u_fade') };
 
   const uFieldDep = {
@@ -1586,7 +1680,7 @@
     tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglExact: false,
     mouseRepel: false,
     particles: '19', damping: '0.677', force: '0.3', chaos: '1.86',
-    fade: '0.69', scale: '0.65', spin: '0.000', tempo: '1.00',
+    fade: '0.69', scale: '0.65', spin: '0.000', tempo: '1.00', palette: '1',
     ffield: '0.929', deposit: '3', grav: '1', pressure: '1.93',
     timeK: '38', timeMin: '0.07', charge: '5', pump: '0.099',
     tempo: '1.00',
@@ -1698,6 +1792,12 @@
       case '6':
         ui.tglExact.checked = !ui.tglExact.checked;
         syncUI();
+        break;
+      case '7':
+        nudge(ui.palette, -1);
+        break;
+      case '8':
+        nudge(ui.palette, 1);
         break;
       case 'm': case 'M':
         if(ui.mouseRepel.checked) ui.mouseAttract.checked = true;
@@ -2087,6 +2187,7 @@
     gl.uniform1i(uPts.kernelOn, kernelOn);
     gl.uniform1f(uPts.alphaMul, Math.sqrt(1048576.0 / activeN));
     gl.uniform1i(uPts.exactIFS, ui.tglExact.checked ? 1 : 0);
+    gl.uniform1i(uPts.palette, parseInt(ui.palette.value));
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
@@ -2111,6 +2212,7 @@
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, trailTex[1-trailFlip]);
     gl.uniform1i(uBlit.tex, 0);
+    gl.uniform1i(uBlit.palette, parseInt(ui.palette.value));
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
