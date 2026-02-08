@@ -31,17 +31,22 @@
     max-height:calc(100% - 28px); overflow-y:auto; overflow-x:hidden;
     scrollbar-width:thin; scrollbar-color:#1e1e28 transparent;
   }
+  @media(max-width:499px){
+    .panel{ bottom:auto; top:48px; max-height:calc(100% - 62px); }
+  }
   .panel::-webkit-scrollbar{ width:4px; }
   .panel::-webkit-scrollbar-thumb{ background:#1e1e28; border-radius:2px; }
   .btn-bar{
     pointer-events:auto;
     display:grid;
     grid-template-columns: repeat(3, 1fr);
-    gap:6px;
+    gap:4px;
     margin-bottom:6px;
   }
+  .btn-bar button{ font-size:10px; padding:5px 4px; }
   @media(min-width:500px){
     .btn-bar{ display:flex; gap:10px; flex-wrap:wrap; }
+    .btn-bar button{ font-size:inherit; padding:revert; }
   }
   .credit{
     position:absolute; bottom:4px; right:14px;
@@ -372,7 +377,7 @@
   const slidersWrap = document.getElementById('slidersWrap');
   const panelHideBtn = document.getElementById('panelHide');
 
-  let slidersVisible = true;
+  let slidersVisible = window.innerWidth >= 500;
   function togglePanel(){
     slidersVisible = !slidersVisible;
     slidersWrap.style.display = slidersVisible ? '' : 'none';
@@ -381,6 +386,9 @@
       : 'UKÁZAT <small>(TAB)</small>';
   }
   panelHideBtn.addEventListener('click', togglePanel);
+  // init state
+  if(!slidersVisible) slidersWrap.style.display = 'none';
+  if(!slidersVisible) panelHideBtn.innerHTML = 'UKÁZAT <small>(TAB)</small>';
 
   // =========================
   // URL hash: encode/decode nastavení
