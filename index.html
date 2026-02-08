@@ -32,7 +32,7 @@
     scrollbar-width:thin; scrollbar-color:#1e1e28 transparent;
   }
   @media(max-width:499px){
-    .panel{ bottom:auto; top:48px; max-height:calc(100% - 62px); }
+    .panel{ bottom:auto; top:4px; max-height:calc(100% - 8px); }
   }
   .panel::-webkit-scrollbar{ width:4px; }
   .panel::-webkit-scrollbar-thumb{ background:#1e1e28; border-radius:2px; }
@@ -112,8 +112,8 @@
     <div class="t">TWIST // KERNEL + POLE + NÁBOJ + TLAK + ČAS</div>
     <div class="a">
       JÁDRO: z=Tr(x), t=TM(n), i=(z+2t) mod 5, x←gᵢ(x).
-      POLE: gyron → hmota(R), d/e → náboj(G/B). ∇ρL = gravitace, -∇ρS = tlak, sign(ρQ)·∇ρQ = plazma.
-      ČAS: N=1/(1+K·ρ). POHON: gyron kopanec. MYŠ: odpuz / tahni.
+      POLE: gyron → hmota(R), d/e → náboj(G/B). ∇ρL = gravitace, -∇ρS = tlak, sign(ρQ)·∇ρQ = plazma. ρ ∈ [0,1].
+      ČAS: dτ/dn = 1/(1+K·ρ). POHON: gyron kopanec. PŘESNÝ: pos=K(pos). MYŠ: odpuz / tahni.
       KOLEČKO: zoom. SHIFT+KOLEČKO: rotace. DOTYK: 1prst=myš, 2prsty=zoom+rotace.
     </div>
   </div>
@@ -138,14 +138,15 @@
           <label><input type="checkbox" id="tglMouse"  checked>MYŠ <small>(3)</small></label>
           <label><input type="checkbox" id="tglChaos"  checked>CHAOS <small>(4)</small></label>
           <label><input type="checkbox" id="tglPump" checked>POHON <small>(5)</small></label>
+          <label><input type="checkbox" id="tglExact">PŘESNÝ <small>(6)</small></label>
         </div>
       </div>
 
       <div class="row" id="rowMouseMode">
         <label>MYŠ REŽIM <small>(M)</small></label>
         <div class="tog">
-          <label><input type="radio" name="mouseMode" id="mouseRepel" checked>ODPUZ</label>
-          <label><input type="radio" name="mouseMode" id="mouseAttract">TAHNI</label>
+          <label><input type="radio" name="mouseMode" id="mouseRepel">ODPUZ</label>
+          <label><input type="radio" name="mouseMode" id="mouseAttract" checked>TAHNI</label>
         </div>
       </div>
 
@@ -185,7 +186,7 @@
 
       <div class="row" id="rowScale">
         <label>MĚŘÍTKO <small>(+ −)</small></label>
-        <input id="scale" type="range" min="0.02" max="5.0" step="0.01" value="0.97" />
+        <input id="scale" type="range" min="0.02" max="80.0" step="0.01" value="0.97" />
       </div>
 
       <div class="row" id="rowSpin">
@@ -199,18 +200,18 @@
       </div>
 
       <div class="row" id="rowDeposit">
-        <label>VKLAD <small>(F V)</small></label>
-        <input id="deposit" type="range" min="0.000" max="0.100" step="0.001" value="0.040" />
+        <label>HUSTOTA <small>(F V)</small></label>
+        <input id="deposit" type="range" min="1" max="50" step="1" value="8" />
       </div>
 
       <div class="row" id="rowGrav">
         <label>GRAVITACE <small>(↑ ↓)</small></label>
-        <input id="grav" type="range" min="0.000" max="0.200" step="0.001" value="0.012" />
+        <input id="grav" type="range" min="0.000" max="1.000" step="0.001" value="0.100" />
       </div>
 
       <div class="row" id="rowPressure">
         <label>TLAK <small>(, .)</small></label>
-        <input id="pressure" type="range" min="0.000" max="0.500" step="0.001" value="0.016" />
+        <input id="pressure" type="range" min="0.000" max="2.000" step="0.001" value="0.150" />
       </div>
 
       <div class="row" id="rowTimeK">
@@ -225,7 +226,7 @@
 
       <div class="row" id="rowCharge">
         <label>NÁBOJ <small>(Q A)</small></label>
-        <input id="charge" type="range" min="0.000" max="0.300" step="0.001" value="0.199" />
+        <input id="charge" type="range" min="0.000" max="5.000" step="0.01" value="1.50" />
       </div>
 
       <div class="row" id="rowPump">
@@ -245,6 +246,7 @@
       <div class="krow"><span class="kk">3</span><span>MYŠ on/off</span></div>
       <div class="krow"><span class="kk">4</span><span>CHAOS on/off</span></div>
       <div class="krow"><span class="kk">5</span><span>POHON on/off</span></div>
+      <div class="krow"><span class="kk">6</span><span>PŘESNÝ IFS on/off (kanonický krok)</span></div>
       <div class="krow"><span class="kk">M</span><span>myš: odpuz / tahni</span></div>
       <div class="krow"><span class="kk">P / N</span><span>více / méně částic</span></div>
       <h3>KAMERA</h3>
@@ -260,7 +262,7 @@
       <div class="krow"><span class="kk">W / S</span><span>čas K</span></div>
       <div class="krow"><span class="kk">E / D</span><span>čas min</span></div>
       <div class="krow"><span class="kk">T / G</span><span>pohon (pump)</span></div>
-      <div class="krow"><span class="kk">F / V</span><span>vklad (deposit)</span></div>
+      <div class="krow"><span class="kk">F / V</span><span>hustota (deposit multiplier)</span></div>
       <div class="krow"><span class="kk">Z / X</span><span>chaos</span></div>
       <div class="krow"><span class="kk">I / K</span><span>stopa (fade)</span></div>
       <div class="krow"><span class="kk">O / L</span><span>pole fade</span></div>
@@ -295,6 +297,7 @@
     tglMouse:   document.getElementById('tglMouse'),
     tglChaos:   document.getElementById('tglChaos'),
     tglPump:    document.getElementById('tglPump'),
+    tglExact:   document.getElementById('tglExact'),
     mouseRepel: document.getElementById('mouseRepel'),
     mouseAttract: document.getElementById('mouseAttract'),
 
@@ -363,7 +366,7 @@
     setRowEnabled(ui.rowPump, pumpOn);
   }
 
-  [ui.tglKernel, ui.tglField, ui.tglMouse, ui.tglChaos, ui.tglPump,
+  [ui.tglKernel, ui.tglField, ui.tglMouse, ui.tglChaos, ui.tglPump, ui.tglExact,
    ui.mouseRepel, ui.mouseAttract].forEach(el => {
     el.addEventListener('change', syncUI);
   });
@@ -407,7 +410,7 @@
   // toggle keys
   const TOGGLE_MAP = [
     ['K', 'tglKernel'], ['F', 'tglField'], ['X', 'tglMouse'],
-    ['C', 'tglChaos'],  ['P', 'tglPump'],
+    ['C', 'tglChaos'],  ['P', 'tglPump'],  ['E', 'tglExact'],
   ];
 
   function encodeSettings(){
@@ -429,10 +432,29 @@
 
   function decodeSettings(hash){
     if(!hash) return;
-    const parts = hash.split('~');
+    // backwards compat: old format used '.' separator (broken for decimals)
+    // detect: if no '~' present but '.' is, try old format
+    let parts;
+    if(hash.includes('~')){
+      parts = hash.split('~');
+    } else {
+      // old dot format: split carefully, rejoin decimal values
+      // e.g. "K1F1X1C1P1.Mr.dm0.677" -> dots between params
+      // heuristic: split on dots, rejoin when a part is pure digits (decimal tail)
+      const raw = hash.split('.');
+      parts = [];
+      for(let i = 0; i < raw.length; i++){
+        if(i > 0 && /^\d+$/.test(raw[i]) && parts.length > 0 && /\d$/.test(parts[parts.length-1])){
+          // this is a decimal tail, rejoin
+          parts[parts.length-1] += '.' + raw[i];
+        } else {
+          parts.push(raw[i]);
+        }
+      }
+    }
     for(const p of parts){
-      // toggles: K1F1X1C1P0
-      if(p.length > 4 && /^[KFXCP][01]/.test(p)){
+      // toggles: K1F1X1C1P1E0
+      if(p.length > 4 && /^[KFXCPE][01]/.test(p)){
         for(let i = 0; i < p.length - 1; i += 2){
           const key = p[i];
           const val = p[i+1] === '1';
@@ -666,7 +688,7 @@
   uniform sampler2D u_prev;
   uniform float u_fade;
   out vec4 o_col;
-  void main(){ o_col = min(texture(u_prev, v_uv) * u_fade, 2.0); }`;
+  void main(){ o_col = min(texture(u_prev, v_uv) * u_fade, 1.0); }`;  // kanonicky: rho ∈ [0,1]
 
   const FS_BLIT = `#version 300 es
   precision highp float;
@@ -810,6 +832,7 @@
   uniform int   u_mouseOn;
   uniform int   u_chaosOn;
   uniform int   u_pumpOn;
+  uniform int   u_exactIFS;  // presny IFS: pos = target, vel = 0
 
   uniform float u_grav;
   uniform float u_pump;
@@ -937,11 +960,32 @@
     // IFS cíl
     vec2 target = u_ck[idx] + cmul(u_J, pos);
 
+    // PŘESNÝ IFS: kanonický krok, žádné síly
+    if(u_exactIFS == 1){
+      pos = target;
+      vel = vec2(0.0);
+
+      // hranice
+      if(abs(pos.x) > u_bounds){ pos.x = sign(pos.x) * u_bounds; }
+      if(abs(pos.y) > u_bounds){ pos.y = sign(pos.y) * u_bounds; }
+
+      o_state = vec4(pos, vel);
+      if(u_kernelOn == 1){
+        o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
+        o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+      } else {
+        o_k0 = ok0;
+        o_k1 = ok1;
+      }
+      return;
+    }
+
     // pružina k cíli
     vec2 acc = (target - pos) * u_force;
 
     // pole = hustota + gradient + casova dilatace + naboj
-    float N = 1.0; // dτ/dn: proper-time rate (1 = volný prostor, Canon: lapse L = 1/N)
+    // dτ/dn: proper-time rate (1 = volný prostor, Canon: lapse L = 1/N)
+    float N = 1.0;
 
     if(u_fieldOn == 1){
       vec2 uv = pos / u_bounds * 0.5 + 0.5;
@@ -950,13 +994,12 @@
       // hmota z rozmazaneho pole (R kanal) -> gravitace + cas
       float rho = texture(u_field, uv).r;
 
-      // lokalni tempo casu: N = 1/(1 + K*rho)
+      // lokalni tempo casu: N = 1/(1 + K*rho), rho kanonicky v [0,1]
       N = 1.0 / (1.0 + u_timeK * rho);
       N = clamp(N, u_timeMin, 1.0);
 
-      float invN = 1.0 / N;
-
       // gravitace: pritazlivost z rozmazaneho pole (dlouhy dosah)
+      // bez invN: vsechny sily v souradnicovem case, dt=N resi vlastni cas
       if(u_grav > 0.0){
         float fx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0)).r;
         float fx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0)).r;
@@ -964,7 +1007,7 @@
         float fy0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y)).r;
 
         vec2 gradL = vec2(fx1 - fx0, fy1 - fy0);
-        acc += gradL * u_grav * invN;
+        acc += gradL * u_grav;
       }
 
       // vzorkuj syrove pole jednou (pro tlak i naboj)
@@ -973,15 +1016,14 @@
       vec4 raw_yp = texture(u_fieldRaw, uv + vec2(0.0, u_fieldTexel.y));
       vec4 raw_ym = texture(u_fieldRaw, uv - vec2(0.0, u_fieldTexel.y));
 
-      // tlak: odpudivost ze syroveho pole (kratky dosah, "tvrde jadro")
+      // tlak: odpudivost ze syroveho pole (kratky dosah)
+      // bez invN: konzistentni s gravitaci
       if(u_pressure > 0.0){
         vec2 gradS = vec2(raw_xp.r - raw_xm.r, raw_yp.r - raw_ym.r);
-        acc -= gradS * u_pressure * invN;
+        acc -= gradS * u_pressure;
       }
 
       // nabojove pole: plazma (varianta A)
-      // Q = znamenko lokalniho pole, ne vlastnost castice
-      // castice reaguje na lokalni rhoQ -> samoorganizace
       if(u_charge > 0.0){
         vec4 raw_here = texture(u_fieldRaw, uv);
         float rhoQ = raw_here.g - raw_here.b;
@@ -1086,6 +1128,7 @@
   uniform int  u_tm;
   uniform uint u_frame;
   uniform int  u_kernelOn;
+  uniform int  u_exactIFS;
 
   out float v_speed;
   flat out float v_z;
@@ -1145,29 +1188,37 @@
     vec2 rp = vec2(c*pos.x - s*pos.y, s*pos.x + c*pos.y);
 
     gl_Position = vec4((rp.x / u_aspect) * u_scale, rp.y * u_scale, 0.0, 1.0);
-    gl_PointSize = 1.0;
+    gl_PointSize = (u_exactIFS == 1) ? 2.0 : 1.0;
   }`;
 
   const FS_POINTS = `#version 300 es
   precision highp float;
+  precision highp int;
   in float v_speed;
   flat in float v_z;
   flat in float v_gyron;
   uniform float u_scale;
   uniform float u_alphaMul; // kompenzace poctu castic
+  uniform int u_exactIFS;
   out vec4 o_col;
   void main(){
     float e = clamp(v_speed * 28.0, 0.0, 1.0);
     vec3 c1 = vec3(0.90, 0.45, 0.10);
     vec3 c4 = vec3(0.10, 0.85, 1.00);
     vec3 c = (v_z > 3.5) ? c4 : c1;
-    c = mix(c*0.25, c, e);
-    if(v_gyron > 0.5){
-      c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
+
+    if(u_exactIFS == 1){
+      // presny fraktal: plna barva, nizka alfa pro postupnou akumulaci
+      // s fade=1.0 se kazdy snimek prida, fraktal roste z invariantni miry
+      if(v_gyron > 0.5) c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
+      float alpha = 0.008 * u_alphaMul;
+      o_col = vec4(c, clamp(alpha, 0.001, 0.1));
+    } else {
+      c = mix(c*0.25, c, e);
+      if(v_gyron > 0.5) c = mix(c, vec3(1.0, 0.75, 0.95), 0.45);
+      float alpha = 0.14 * u_scale * u_scale * u_alphaMul;
+      o_col = vec4(c, clamp(alpha, 0.001, 0.20));
     }
-    // alfa kompenzuje hustotu: zoom + pocet castic
-    float alpha = 0.14 * u_scale * u_scale * u_alphaMul;
-    o_col = vec4(c, clamp(alpha, 0.001, 0.20));
   }`;
 
   // =========================
@@ -1241,6 +1292,10 @@
     clearFBO(fboBlur[1],  FIELD_SIZE, FIELD_SIZE);
     clearFBO(fboTemp,     FIELD_SIZE, FIELD_SIZE);
   }
+  function clearTrail(){
+    if(trailFbo[0]) clearFBO(trailFbo[0], viewW, viewH);
+    if(trailFbo[1]) clearFBO(trailFbo[1], viewW, viewH);
+  }
 
   // =========================
   // Trail (obraz) ping-pong
@@ -1288,6 +1343,7 @@
     mouseOn:  U(progPhys,'u_mouseOn'),
     chaosOn:  U(progPhys,'u_chaosOn'),
     pumpOn:   U(progPhys,'u_pumpOn'),
+    exactIFS: U(progPhys,'u_exactIFS'),
 
     grav:  U(progPhys,'u_grav'),
     pump:  U(progPhys,'u_pump'),
@@ -1321,6 +1377,7 @@
     frame: U(progPts,'u_frame'),
     kernelOn: U(progPts,'u_kernelOn'),
     alphaMul: U(progPts,'u_alphaMul'),
+    exactIFS: U(progPts,'u_exactIFS'),
   };
 
   const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
@@ -1543,6 +1600,10 @@
   let prevFieldOn = true;
   let kickFrames = 0;  // odpocet snimku s nahodnym impulzem
 
+  // PŘESNÝ auto-zoom
+  let prevExact = false;
+  let savedScale = null;  // zachovany zoom pred PŘESNÝM
+
   function reset(){
     seed = (Math.random()*1e9)>>>0;
 
@@ -1566,12 +1627,12 @@
 
   // VÝCHOZÍ: reset sliders to defaults + reset simulation
   const DEFAULTS = {
-    tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true,
-    mouseRepel: true,
+    tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglExact: false,
+    mouseRepel: false,
     particles: '19', damping: '0.677', force: '0.044', chaos: '0.7',
     fade: '0.973', scale: '0.97', spin: '0.000',
-    ffield: '0.96', deposit: '0.040', grav: '0.012', pressure: '0.016',
-    timeK: '78', timeMin: '0.14', charge: '0.199', pump: '0.069',
+    ffield: '0.96', deposit: '8', grav: '0.100', pressure: '0.150',
+    timeK: '78', timeMin: '0.14', charge: '1.50', pump: '0.069',
   };
 
   function restoreDefaults(){
@@ -1580,6 +1641,7 @@
     ui.tglMouse.checked  = DEFAULTS.tglMouse;
     ui.tglChaos.checked  = DEFAULTS.tglChaos;
     ui.tglPump.checked   = DEFAULTS.tglPump;
+    ui.tglExact.checked  = DEFAULTS.tglExact;
     if(DEFAULTS.mouseRepel) ui.mouseRepel.checked = true;
     else ui.mouseAttract.checked = true;
 
@@ -1680,6 +1742,10 @@
         break;
       case '5':
         ui.tglPump.checked = !ui.tglPump.checked;
+        syncUI();
+        break;
+      case '6':
+        ui.tglExact.checked = !ui.tglExact.checked;
         syncUI();
         break;
       case 'm': case 'M':
@@ -1891,6 +1957,34 @@
     prevFieldOn = (fieldOn === 1);
     if(kickFrames > 0) kickFrames--;
 
+    // PŘESNÝ auto-zoom
+    const exactOn = ui.tglExact.checked;
+    if(exactOn && !prevExact){
+      // prave zapnuto: uloz aktualni zoom, vycisti stopu
+      savedScale = parseFloat(ui.scale.value);
+
+      // analyticka velikost atraktoru:
+      // fixed points are ω_k (roots of unity), |ω_k| = 1
+      // attractor radius ≈ max|c_k| / (1 - |J|)
+      // |J| = |1 + ζ₅²| = 1/φ ≈ 0.618, 1-|J| ≈ 0.382
+      // |c_k| = |1-J|·|ω_k| = |1-J|, all same
+      const absJ = Math.sqrt(Jre*Jre + Jim*Jim);
+      const absOneMinusJ = Math.sqrt(oneMinusJ.re*oneMinusJ.re + oneMinusJ.im*oneMinusJ.im);
+      const attractorR = absOneMinusJ / (1.0 - absJ);  // ≈ 2.6
+      // zoom aby atraktor vyplnil ~70% obrazovky
+      const autoScale = Math.min(0.7 / attractorR, 80.0);
+      ui.scale.value = autoScale.toFixed(2);
+
+      clearTrail();
+    }
+    if(!exactOn && prevExact && savedScale !== null){
+      // prave vypnuto: obnov puvodni zoom, vycisti stopu
+      ui.scale.value = savedScale.toFixed(2);
+      savedScale = null;
+      clearTrail();
+    }
+    prevExact = exactOn;
+
     // =========================
     // 0) POLE: fade + depozit + blur (bezi vzdy)
     // =========================
@@ -1919,7 +2013,7 @@
       gl.uniform1i(uFieldDep.tm, tm);
       gl.uniform1ui(uFieldDep.frame, frame>>>0);
       gl.uniform1i(uFieldDep.kernelOn, kernelOn);
-      gl.uniform1f(uFieldDep.deposit, deposit * (1048576.0 / activeN));
+      gl.uniform1f(uFieldDep.deposit, deposit * (1.0 - ffield) * (FIELD_SIZE * FIELD_SIZE) / activeN);
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
@@ -1981,6 +2075,7 @@
     gl.uniform1i(uPhys.mouseOn,  mouseOn);
     gl.uniform1i(uPhys.chaosOn,  chaosOn);
     gl.uniform1i(uPhys.pumpOn,   pumpOn);
+    gl.uniform1i(uPhys.exactIFS, ui.tglExact.checked ? 1 : 0);
 
     gl.uniform1f(uPhys.grav, (fieldOn ? grav : 0.0));
     gl.uniform1f(uPhys.pump, (pumpOn ? pump : 0.0));
@@ -2044,7 +2139,7 @@
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, trailTex[trailFlip]);
     gl.uniform1i(uFade.prev, 0);
-    gl.uniform1f(uFade.fade, fade);
+    gl.uniform1f(uFade.fade, exactOn ? 1.0 : fade);
 
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -2063,6 +2158,7 @@
     gl.uniform1ui(uPts.frame, frame>>>0);
     gl.uniform1i(uPts.kernelOn, kernelOn);
     gl.uniform1f(uPts.alphaMul, Math.sqrt(1048576.0 / activeN));
+    gl.uniform1i(uPts.exactIFS, ui.tglExact.checked ? 1 : 0);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
