@@ -97,12 +97,58 @@
   .help-overlay h3:first-child{ margin-top:0; }
   .help-overlay .krow{ display:flex; justify-content:space-between; padding:2px 0; }
   .help-overlay .kk{ color:#00d2ff; min-width:90px; }
+  .invert-btn{
+    display:none;
+    position:absolute; bottom:52px; right:14px;
+    padding:10px 16px; border-radius:8px;
+    background:rgba(6,6,10,0.8); border:1px solid #1e1e28;
+    color:#666; font-size:11px; letter-spacing:2px;
+    pointer-events:auto; cursor:pointer;
+    touch-action:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    z-index:4;
+  }
+  .invert-btn.active{
+    background:rgba(0,210,255,0.15); border-color:#00d2ff;
+    color:#00d2ff;
+  }
+  .invert-hud{
+    display:none;
+    position:absolute; top:14px; left:50%;
+    transform:translateX(-50%);
+    color:#00d2ff; font-size:11px; letter-spacing:3px;
+    pointer-events:none; z-index:4;
+  }
+  .invert-hud.show{ display:block; }
+  @media(pointer:coarse){
+    .invert-btn{ display:block; }
+  }
   .ui-hidden .top{ display:none; }
   .ui-hidden .hud{ display:none; }
   .ui-hidden .panel{ display:none; }
   .ui-hidden .help-overlay{ display:none; }
   .ui-hidden .credit{ display:none; }
   .ui-hidden .twistj-link{ display:none; }
+  .ui-hidden #gameOverlay{ display:none !important; }
+  .ui-hidden .invert-btn{ display:none !important; }
+  .ui-hidden .invert-hud{ display:none !important; }
+
+  /* Game locked mode: fullscreen, no controls */
+  .game-locked .hud{ display:none !important; }
+  .game-locked .panel{ display:none !important; }
+  .game-locked .help-overlay{ display:none !important; }
+  .game-locked .invert-hud{ display:none !important; }
+  .game-locked .top .t{ font-size:11px; }
+  .game-locked #gameLockedHud{
+    display:flex !important;
+    position:absolute; top:36px; left:50%;
+    transform:translateX(-50%);
+    gap:16px; color:#555; font-size:11px; letter-spacing:2px;
+    pointer-events:none; z-index:4;
+  }
+  .game-locked #gameLockedHud .gl-time{ color:#00d2ff; }
+  .game-locked #gameLockedHud .gl-fill{ color:#555; }
+  .game-locked #gameLockedHud .gl-status{ color:#0a0; }
   .ui-hidden .wrap{ height:100vh; }
 </style>
 </head>
@@ -130,7 +176,13 @@
           <label><input type="checkbox" id="tglField"  checked>FIELD <small>(2)</small></label>
           <label><input type="checkbox" id="tglMouse"  checked>MOUSE <small>(3)</small></label>
           <label><input type="checkbox" id="tglChaos"  checked>CHAOS <small>(4)</small></label>
+        </div>
+      </div>
+      <div class="row" id="rowModules2">
+        <label>EXTRAS</label>
+        <div class="tog">
           <label><input type="checkbox" id="tglPump" checked>PUMP <small>(5)</small></label>
+          <label><input type="checkbox" id="tglReact">REACT <small>(opt)</small></label>
           <label><input type="checkbox" id="tglExact">EXACT <small>(6)</small></label>
         </div>
       </div>
@@ -148,8 +200,9 @@
         <button id="panelHide">HIDE <small>(TAB)</small></button>
         <button id="reset">RESET <small>(R)</small></button>
         <button id="defaults">DEFAULTS <small>(B)</small></button>
-        <button id="pause">PAUSE <small>(SPC)</small></button>
+        <button id="pause">PAUSE <small>(ESC)</small></button>
         <button id="share">SHARE <small>(C)</small></button>
+        <button id="gameBtn">GAME</button>
       </div>
 
       <div id="slidersWrap">
@@ -170,7 +223,7 @@
 
       <div class="row" id="rowForce">
         <label>IFS FORCE <small>(; ')</small></label>
-        <input id="force" type="range" min="0.000" max="1.000" step="0.001" value="0.3" />
+        <input id="force" type="range" min="0.0000" max="2.000" step="0.0001" value="0.3" />
       </div>
 
       <div class="row" id="rowChaos">
@@ -200,7 +253,7 @@
 
       <div class="row" id="rowFieldFade">
         <label>FIELD FADE <small>(O L)</small></label>
-        <input id="ffield" type="range" min="0.50" max="1.000" step="0.001" value="0.929" />
+        <input id="ffield" type="range" min="0.00" max="1.005" step="0.0001" value="0.929" />
       </div>
 
       <div class="row" id="rowDeposit">
@@ -220,12 +273,12 @@
 
       <div class="row" id="rowTimeK">
         <label>TIME K <small>(W S)</small></label>
-        <input id="timeK" type="range" min="0" max="100" step="1" value="38" />
+        <input id="timeK" type="range" min="0" max="200" step="0.1" value="38" />
       </div>
 
       <div class="row" id="rowTimeMin">
         <label>TIME MIN <small>(E D)</small></label>
-        <input id="timeMin" type="range" min="0.05" max="1.00" step="0.01" value="0.07" />
+        <input id="timeMin" type="range" min="0.0001" max="1.00" step="0.0001" value="0.07" />
       </div>
 
       <div class="row" id="rowCharge">
@@ -241,6 +294,63 @@
       <div class="row" id="rowPump">
         <label>PUMP <small>(T G)</small></label>
         <input id="pump" type="range" min="0.000" max="0.200" step="0.001" value="0.099" />
+      </div>
+
+      <div class="row" id="rowReact">
+        <label>REACT <small>(9 0)</small></label>
+        <input id="react" type="range" min="0.00" max="3.00" step="0.01" value="1.00" />
+      </div>
+      </div>
+
+      <div id="gameWrap" style="display:none">
+      <div class="row">
+        <label>GAME</label>
+        <div class="tog">
+          <label><input type="checkbox" id="gameEnabled">ENABLE</label>
+          <label><input type="checkbox" id="gameShowZone" checked>SHOW ZONE</label>
+        </div>
+      </div>
+      <div class="row">
+        <label>MODE</label>
+        <div class="tog">
+          <label><input type="radio" name="gameMode" id="gameModeEmpty" checked>EMPTY</label>
+          <label><input type="radio" name="gameMode" id="gameModeNotEmpty">NOT EMPTY</label>
+        </div>
+      </div>
+      <div class="row" id="rowGameX">
+        <label>ZONE X</label>
+        <input id="gameX" type="range" min="-0.90" max="0.90" step="0.01" value="0.00" />
+      </div>
+      <div class="row" id="rowGameY">
+        <label>ZONE Y</label>
+        <input id="gameY" type="range" min="-0.90" max="0.90" step="0.01" value="0.00" />
+      </div>
+      <div class="row" id="rowGameSize">
+        <label>ZONE SIZE</label>
+        <input id="gameSize" type="range" min="0.05" max="0.60" step="0.01" value="0.18" />
+      </div>
+      <div class="row" id="rowGameThresh">
+        <label>THRESHOLD</label>
+        <input id="gameThresh" type="range" min="0.001" max="0.200" step="0.001" value="0.030" />
+      </div>
+      <div class="row" id="rowGameCoverage">
+        <label>COVERAGE</label>
+        <input id="gameCoverage" type="range" min="0.001" max="0.200" step="0.001" value="0.020" />
+      </div>
+      <div class="row" id="rowGameGrace">
+        <label>GRACE <small>(s)</small></label>
+        <input id="gameGrace" type="range" min="0.1" max="5.0" step="0.1" value="0.7" />
+      </div>
+      <div class="btn-bar">
+        <button id="gameStart">NEW RUN</button>
+        <button id="gameStop" disabled>STOP</button>
+        <button id="gameBack">&larr; BACK</button>
+        <button id="gameLock">LOCK &amp; SHARE</button>
+      </div>
+      <div id="gameHud" style="text-align:center;padding:6px;font-size:11px;color:#666">
+        <span id="gameStatus">SETUP</span> &nbsp;
+        <span style="color:#00d2ff" id="gameTimer">0.0s</span> &nbsp;
+        <span id="gameFill" style="color:#666">0%</span>
       </div>
       </div>
     </div>
@@ -259,7 +369,8 @@
         Time: d&#964;/dn = 1/(1+K&middot;&#961;).
       </div>
       <h3>TOGGLES</h3>
-      <div class="krow"><span class="kk">SPACE</span><span>pause / resume</span></div>
+      <div class="krow"><span class="kk">ESC</span><span>pause / resume</span></div>
+      <div class="krow"><span class="kk">SPACE (hold)</span><span>invert mouse attract/repel</span></div>
       <div class="krow"><span class="kk">R</span><span>reset (new particles, keep settings)</span></div>
       <div class="krow"><span class="kk">B</span><span>defaults (reset + all sliders to default)</span></div>
       <div class="krow"><span class="kk">1</span><span>KERNEL on/off</span></div>
@@ -289,16 +400,17 @@
       <div class="krow"><span class="kk">W / S</span><span>time K</span></div>
       <div class="krow"><span class="kk">E / D</span><span>time min</span></div>
       <div class="krow"><span class="kk">T / G</span><span>pump strength</span></div>
+      <div class="krow"><span class="kk">9 / 0</span><span>react intensity (0 = camera reset when REACT off)</span></div>
       <div class="krow"><span class="kk">F / V</span><span>density (deposit multiplier)</span></div>
       <div class="krow"><span class="kk">Z / X</span><span>chaos</span></div>
       <div class="krow"><span class="kk">I / K</span><span>trail (fade)</span></div>
       <div class="krow"><span class="kk">O / L</span><span>field fade</span></div>
       <div class="krow"><span class="kk">J / Y</span><span>tempo (slow / fast)</span></div>
+      <div class="krow"><span class="kk">9 / 0</span><span>react intensity (when REACTIONS on)</span></div>
       <h3>DISPLAY</h3>
       <div class="krow"><span class="kk">H</span><span>show / hide this help</span></div>
       <div class="krow"><span class="kk">U</span><span>hide all UI (clean canvas for screenshots)</span></div>
       <div class="krow"><span class="kk">TAB</span><span>hide / show controls</span></div>
-      <div class="krow"><span class="kk">ESC</span><span>close help</span></div>
       <h3>SHARE</h3>
       <div style="color:#777;margin-bottom:8px;line-height:1.5">
         Press <span style="color:#00d2ff">C</span> or the SHARE button to copy a URL encoding all current settings. Anyone opening the link starts with the same configuration. Explore, then share what you find.
@@ -309,6 +421,22 @@
         ALWAYS THE SAME. FOREVER NEW.<br>
         <span style="color:#00d2ff;letter-spacing:3px">SIMPLIZIS.</span>
       </div>
+    </div>
+
+    <div id="gameOverlay" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:auto;z-index:5">
+      <div style="background:rgba(6,6,10,0.92);border:1px solid #1e1e28;border-radius:8px;padding:24px 36px">
+        <div style="color:#00d2ff;font-size:14px;letter-spacing:3px;margin-bottom:8px" id="gameOverTitle">GAME OVER</div>
+        <div style="color:#8a8a8a;font-size:20px;letter-spacing:2px;margin-bottom:12px" id="gameOverTime">12.3s</div>
+        <button id="gameRetry" style="font-size:12px;padding:8px 18px;letter-spacing:2px">TRY AGAIN</button>
+      </div>
+    </div>
+
+    <div id="invertBtn" class="invert-btn">INVERT</div>
+    <div id="invertHud" class="invert-hud"></div>
+    <div id="gameLockedHud" style="display:none">
+      <span class="gl-status" id="glStatus">READY</span>
+      <span class="gl-time" id="glTime">0.0s</span>
+      <span class="gl-fill" id="glFill">0%</span>
     </div>
 
     <a class="credit twistj-link" href="https://twistj.com" target="_blank" style="right:120px">twistj.com</a>
@@ -334,6 +462,7 @@
     tglMouse:   document.getElementById('tglMouse'),
     tglChaos:   document.getElementById('tglChaos'),
     tglPump:    document.getElementById('tglPump'),
+    tglReact:   document.getElementById('tglReact'),
     tglExact:   document.getElementById('tglExact'),
     mouseRepel: document.getElementById('mouseRepel'),
     mouseAttract: document.getElementById('mouseAttract'),
@@ -349,6 +478,7 @@
     grav:    document.getElementById('grav'),
     pressure: document.getElementById('pressure'),
     pump:    document.getElementById('pump'),
+    react:   document.getElementById('react'),
     spin:    document.getElementById('spin'),
     timeK:   document.getElementById('timeK'),
     timeMin: document.getElementById('timeMin'),
@@ -368,6 +498,7 @@
     rowTimeMin: document.getElementById('rowTimeMin'),
     rowCharge: document.getElementById('rowCharge'),
     rowPump: document.getElementById('rowPump'),
+    rowReact: document.getElementById('rowReact'),
   };
 
   function setRowEnabled(rowEl, enabled){
@@ -401,9 +532,15 @@
     setRowEnabled(ui.rowTimeMin, fieldOn);
     setRowEnabled(ui.rowCharge, fieldOn);
     setRowEnabled(ui.rowPump, pumpOn);
+
+    // REACTIONS depend on FIELD
+    ui.tglReact.disabled = !fieldOn;
+
+    const reactOn = ui.tglReact.checked && fieldOn;
+    setRowEnabled(ui.rowReact, reactOn);
   }
 
-  [ui.tglKernel, ui.tglField, ui.tglMouse, ui.tglChaos, ui.tglPump, ui.tglExact,
+  [ui.tglKernel, ui.tglField, ui.tglMouse, ui.tglChaos, ui.tglPump, ui.tglReact, ui.tglExact,
    ui.mouseRepel, ui.mouseAttract].forEach(el => {
     el.addEventListener('change', syncUI);
   });
@@ -432,6 +569,32 @@
   // =========================
   const BASE_URL = 'https://mathorn1973.github.io/twist/';
 
+  // game UI refs needed for URL encode/decode (full wiring later)
+  const gameUI = {
+    enabled:      document.getElementById('gameEnabled'),
+    showZone:     document.getElementById('gameShowZone'),
+    modeEmpty:    document.getElementById('gameModeEmpty'),
+    modeNotEmpty: document.getElementById('gameModeNotEmpty'),
+    x:            document.getElementById('gameX'),
+    y:            document.getElementById('gameY'),
+    size:         document.getElementById('gameSize'),
+    thresh:       document.getElementById('gameThresh'),
+    coverage:     document.getElementById('gameCoverage'),
+    grace:        document.getElementById('gameGrace'),
+    start:        document.getElementById('gameStart'),
+    stop:         document.getElementById('gameStop'),
+    back:         document.getElementById('gameBack'),
+    status:       document.getElementById('gameStatus'),
+    timer:        document.getElementById('gameTimer'),
+    fill:         document.getElementById('gameFill'),
+    overlay:      document.getElementById('gameOverlay'),
+    overTime:     document.getElementById('gameOverTime'),
+    overTitle:    document.getElementById('gameOverTitle'),
+    retry:        document.getElementById('gameRetry'),
+  };
+
+  let gameLockRequested = false;
+
   const SLIDER_MAP = [
     ['dm', 'damping'],   ['fo', 'force'],    ['ch', 'chaos'],
     ['fa', 'fade'],      ['sc', 'scale'],    ['sp', 'spin'],
@@ -439,11 +602,12 @@
     ['pr', 'pressure'],  ['tk', 'timeK'],    ['tm', 'timeMin'],
     ['qa', 'charge'],    ['pu', 'pump'],     ['pa', 'particles'],
     ['te', 'tempo'],    ['pl', 'palette'],  ['vx', 'vortex'],
+    ['rx', 'react'],
   ];
 
   const TOGGLE_MAP = [
     ['K', 'tglKernel'], ['F', 'tglField'], ['X', 'tglMouse'],
-    ['C', 'tglChaos'],  ['P', 'tglPump'],  ['E', 'tglExact'],
+    ['C', 'tglChaos'],  ['P', 'tglPump'],  ['E', 'tglExact'], ['R', 'tglReact'],
   ];
 
   function encodeSettings(){
@@ -456,6 +620,18 @@
     parts.push('M' + (ui.mouseAttract.checked ? 'a' : 'r'));
     for(const [k, id] of SLIDER_MAP){
       parts.push(k + ui[id].value);
+    }
+    // game params (only when enabled)
+    if(gameUI.enabled.checked){
+      parts.push('g1');
+      parts.push('gs' + (gameUI.showZone.checked ? '1' : '0'));
+      parts.push('gm' + (gameUI.modeEmpty.checked ? '0' : '1'));
+      parts.push('gx' + gameUI.x.value);
+      parts.push('gy' + gameUI.y.value);
+      parts.push('gh' + gameUI.size.value);
+      parts.push('gt' + gameUI.thresh.value);
+      parts.push('gC' + gameUI.coverage.value);
+      parts.push('gg' + gameUI.grace.value);
     }
     return parts.join('~');
   }
@@ -477,7 +653,7 @@
       }
     }
     for(const p of parts){
-      if(p.length > 4 && /^[KFXCPE][01]/.test(p)){
+      if(p.length > 4 && /^[KFXCPER][01]/.test(p)){
         for(let i = 0; i < p.length - 1; i += 2){
           const key = p[i];
           const val = p[i+1] === '1';
@@ -504,8 +680,20 @@
           }
         }
       }
+      // game params
+      if(p === 'g1'){ gameUI.enabled.checked = true; continue; }
+      if(p === 'gL1'){ gameLockRequested = true; continue; }
+      if(p.startsWith('gs')){ gameUI.showZone.checked = p[2] === '1'; continue; }
+      if(p.startsWith('gm')){ if(p[2]==='1') gameUI.modeNotEmpty.checked=true; else gameUI.modeEmpty.checked=true; continue; }
+      const gMap = {gx:'x', gy:'y', gh:'size', gt:'thresh', gC:'coverage', gg:'grace'};
+      const gk2 = p.substring(0,2);
+      if(gMap[gk2] && gameUI[gMap[gk2]]){
+        const v = parseFloat(p.substring(2));
+        if(!isNaN(v)) gameUI[gMap[gk2]].value = v;
+      }
     }
     syncUI();
+    gameReadUI();
   }
 
   function shareURL(){
@@ -702,6 +890,15 @@
   in vec2 v_uv;
   uniform sampler2D u_tex;
   uniform int u_palette;
+  uniform int u_zoneShow;
+  uniform vec4 u_zone; // cx, cy, half, lineW
+  uniform float u_zoneDanger; // 0=safe, 1=critical
+  uniform int u_zoneMode; // 0=EMPTY(blue), 1=NOT_EMPTY(green)
+  uniform float u_viewScale;
+  uniform float u_cs;
+  uniform float u_sn;
+  uniform vec2 u_pan;
+  uniform float u_aspect;
   out vec4 o_col;
   void main(){
     vec3 c = texture(u_tex, v_uv).rgb;
@@ -713,6 +910,36 @@
       c = max(vec3(0.0), lum + (c - lum) * sat);
       float gam = (u_palette >= 9) ? 0.85 : 0.75;
       c = pow(c, vec3(gam));
+    }
+
+    if(u_zoneShow == 1){
+      vec2 ndc = v_uv * 2.0 - 1.0;
+      ndc.x /= u_aspect;
+      ndc /= max(u_viewScale, 0.001);
+      vec2 w = mat2(u_cs, u_sn, -u_sn, u_cs) * ndc + u_pan;
+      float dx = abs(w.x - u_zone.x) - u_zone.z;
+      float dy = abs(w.y - u_zone.y) - u_zone.z;
+      float outer = max(dx, dy);
+      float lw = u_zone.w;
+
+      // zone color: blue(safe) -> red(danger)
+      float d = clamp(u_zoneDanger, 0.0, 1.0);
+      vec3 safeCol = (u_zoneMode == 1) ? vec3(0.1, 0.7, 0.3) : vec3(0.1, 0.4, 0.8);
+      vec3 dangerCol = vec3(0.9, 0.1, 0.05);
+      vec3 zoneCol = mix(safeCol, dangerCol, d);
+
+      // fill: barely visible, grows with danger
+      if(outer < 0.0){
+        float fillAlpha = 0.03 + 0.12 * d;
+        c = mix(c, zoneCol, fillAlpha);
+      }
+
+      // border: subtle, grows with danger
+      bool onBorder = outer > -lw && outer < lw && min(dx,dy) < lw;
+      if(onBorder){
+        float borderAlpha = 0.15 + 0.55 * d;
+        c = mix(c, zoneCol, borderAlpha);
+      }
     }
 
     o_col = vec4(c, 1.0);
@@ -821,7 +1048,70 @@
   in float v_qp;
   in float v_qm;
   out vec4 o_col;
-  void main(){ o_col = vec4(v_mass, v_qp, v_qm, 1.0); }`;
+  void main(){ o_col = vec4(v_mass, v_qp, v_qm, 0.0); }`;
+
+  const FS_FIELD_REACT = `#version 300 es
+  precision highp float;
+  in vec2 v_uv;
+  uniform sampler2D u_prev;
+  uniform vec2 u_texel;
+  uniform float u_charge;
+  uniform float u_pressure;
+  uniform float u_react;
+  out vec4 o_col;
+
+  float sat(float x){ return clamp(x, 0.0, 1.0); }
+
+  void main(){
+    vec4 f = texture(u_prev, v_uv);
+    float r = f.r;
+    float g = f.g;
+    float b = f.b;
+    float h = f.a;
+
+    // (1) charge annihilation: + and - cancel -> heat (h)
+    float ann = min(g, b) * u_react;
+    g -= ann;
+    b -= ann;
+
+    // cooling even when FIELD FADE = 1
+    h *= 0.992;
+
+    // heat from reaction (scales with CHARGE and REACT)
+    float heatGain = (0.22 + 0.02 * u_charge) * u_react;
+    h = sat(h + ann * heatGain);
+
+    // ash: small fraction of reaction goes to mass
+    r = sat(r + ann * 0.08 * u_react);
+
+    // (2) fission: heat + density gradient creates local polarization
+    float rL = texture(u_prev, v_uv - vec2(u_texel.x, 0.0)).r;
+    float rR = texture(u_prev, v_uv + vec2(u_texel.x, 0.0)).r;
+    float rD = texture(u_prev, v_uv - vec2(0.0, u_texel.y)).r;
+    float rU = texture(u_prev, v_uv + vec2(0.0, u_texel.y)).r;
+    float gx = rR - rL;
+    float gy = rU - rD;
+    float gmag = abs(gx) + abs(gy);
+
+    float stress = h * gmag;
+    float thr = (0.010 + 0.002 * u_pressure) / max(u_react, 0.01);
+    float over = max(0.0, stress - thr);
+
+    // sign from main gradient axis (flips on opposite side -> dipole)
+    float sgn = (abs(gx) > abs(gy)) ? sign(gx) : sign(gy);
+
+    float makeQ = over * (0.35 + 0.03 * u_charge) * u_react;
+    makeQ = min(makeQ, 0.25 * r);
+
+    float rhoQ = makeQ * sgn;
+    if(rhoQ > 0.0) g = sat(g + rhoQ);
+    else           b = sat(b - rhoQ);
+
+    // consume mass so it is not numerically infinite
+    r = sat(r - abs(rhoQ) * 0.45);
+
+    o_col = vec4(r, g, b, h);
+  }`;
 
   const FS_PHYS = `#version 300 es
   precision highp float;
@@ -840,6 +1130,8 @@
 
   uniform int   u_kernelOn;
   uniform int   u_fieldOn;
+  uniform int   u_reactOn;
+  uniform float u_react;
   uniform int   u_mouseOn;
   uniform int   u_chaosOn;
   uniform int   u_pumpOn;
@@ -1031,6 +1323,18 @@
         vec2 gradQ = vec2(qxp - qxm, qyp - qym);
         acc += Q * gradQ * u_charge;
       }
+
+      // heat (A channel): blast force from heat gradient
+      if(u_reactOn == 1){
+        float hxp = raw_xp.a;
+        float hxm = raw_xm.a;
+        float hyp = raw_yp.a;
+        float hym = raw_ym.a;
+        vec2 gradH = vec2(hxp - hxm, hyp - hym);
+        // push away from hot regions
+        float blast = (0.10 + 0.18 * u_pressure + 0.03 * u_charge) * u_react;
+        acc -= gradH * blast;
+      }
     }
 
     if(u_mouseOn == 1 && u_mouseDown > 0.5){
@@ -1151,7 +1455,7 @@
     vec4 f = texture(u_fieldBlur, fuv);
     float qp = f.g;
     float qm = f.b;
-    v_charge = (qp - qm) / (qp + qm + 0.001);
+    v_charge = (qp - qm) / (qp + qm + 0.08);
 
     int z = 1;
     int idx = 0;
@@ -1314,6 +1618,7 @@
   const progFieldFade = program(VS_QUAD, FS_FIELD_FADE);
   const progFieldDep  = program(VS_POINTS_FIELD, FS_FIELD_DEPOSIT);
   const progBlur      = program(VS_QUAD, FS_BLUR);
+  const progFieldReact= program(VS_QUAD, FS_FIELD_REACT);
 
   // =========================
   // VAO
@@ -1360,18 +1665,18 @@
   const fboBlur  = [fboMRT([fieldBlur[0]]), fboMRT([fieldBlur[1]])];
   const fboTemp  = fboMRT([fieldTemp]);
 
-  function clearFBO(f, w, h){
+  function clearFBO(f, w, h, alpha=1){
     gl.bindFramebuffer(gl.FRAMEBUFFER, f);
     gl.viewport(0,0,w,h);
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(0,0,0,alpha);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
   function clearField(){
-    clearFBO(fboField[0], FIELD_SIZE, FIELD_SIZE);
-    clearFBO(fboField[1], FIELD_SIZE, FIELD_SIZE);
-    clearFBO(fboBlur[0],  FIELD_SIZE, FIELD_SIZE);
-    clearFBO(fboBlur[1],  FIELD_SIZE, FIELD_SIZE);
-    clearFBO(fboTemp,     FIELD_SIZE, FIELD_SIZE);
+    clearFBO(fboField[0], FIELD_SIZE, FIELD_SIZE, 0);
+    clearFBO(fboField[1], FIELD_SIZE, FIELD_SIZE, 0);
+    clearFBO(fboBlur[0],  FIELD_SIZE, FIELD_SIZE, 0);
+    clearFBO(fboBlur[1],  FIELD_SIZE, FIELD_SIZE, 0);
+    clearFBO(fboTemp,     FIELD_SIZE, FIELD_SIZE, 0);
   }
   function clearTrail(){
     if(trailFbo[0]) clearFBO(trailFbo[0], viewW, viewH);
@@ -1413,6 +1718,8 @@
     fieldTexel: U(progPhys,'u_fieldTexel'),
     tm: U(progPhys,'u_tm'), frame: U(progPhys,'u_frame'),
     kernelOn: U(progPhys,'u_kernelOn'), fieldOn: U(progPhys,'u_fieldOn'),
+    reactOn: U(progPhys,'u_reactOn'),
+    react: U(progPhys,'u_react'),
     mouseOn: U(progPhys,'u_mouseOn'), chaosOn: U(progPhys,'u_chaosOn'),
     pumpOn: U(progPhys,'u_pumpOn'), exactIFS: U(progPhys,'u_exactIFS'),
     grav: U(progPhys,'u_grav'), pump: U(progPhys,'u_pump'),
@@ -1441,7 +1748,14 @@
   };
 
   const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
-  const uBlit = { tex: U(progBlit,'u_tex'), palette: U(progBlit,'u_palette') };
+  const uBlit = {
+    tex: U(progBlit,'u_tex'), palette: U(progBlit,'u_palette'),
+    zoneShow: U(progBlit,'u_zoneShow'), zone: U(progBlit,'u_zone'),
+    zoneDanger: U(progBlit,'u_zoneDanger'),
+    zoneMode: U(progBlit,'u_zoneMode'),
+    viewScale: U(progBlit,'u_viewScale'), cs: U(progBlit,'u_cs'), sn: U(progBlit,'u_sn'),
+    pan: U(progBlit,'u_pan'), aspect: U(progBlit,'u_aspect'),
+  };
   const uFieldFade = { prev: U(progFieldFade,'u_prev'), fade: U(progFieldFade,'u_fade') };
 
   const uFieldDep = {
@@ -1452,6 +1766,13 @@
   };
 
   const uBlur = { tex: U(progBlur,'u_tex'), dir: U(progBlur,'u_dir') };
+  const uFieldReact = {
+    prev: U(progFieldReact,'u_prev'),
+    texel: U(progFieldReact,'u_texel'),
+    charge: U(progFieldReact,'u_charge'),
+    pressure: U(progFieldReact,'u_pressure'),
+    react: U(progFieldReact,'u_react'),
+  };
 
   // =========================
   // TWIST constants (IFS)
@@ -1504,6 +1825,7 @@
   // =========================
   let mouseNX = 0, mouseNY = 0;
   let mx=0, my=0, mDown=0;
+  let invertHold = false;
   let viewRot = 0.0;
   let panX = 0, panY = 0;
   let prevScale = parseFloat(ui.scale.value);
@@ -1732,13 +2054,13 @@
 
   // VÝCHOZÍ: reset sliders to defaults + reset simulation
   const DEFAULTS = {
-    tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglExact: false,
+    tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglReact: false, tglExact: false,
     mouseRepel: false,
     particles: '19', damping: '0.677', force: '0.3', chaos: '1.86',
     fade: '0.69', scale: '0.65', spin: '0.000', tempo: '1.00', palette: '1',
     ffield: '0.929', deposit: '3', grav: '1', pressure: '1.93',
     timeK: '38', timeMin: '0.07', charge: '5', vortex: '0.00', pump: '0.099',
-    tempo: '1.00',
+    react: '1.00',
   };
 
   function restoreDefaults(){
@@ -1747,6 +2069,7 @@
     ui.tglMouse.checked  = DEFAULTS.tglMouse;
     ui.tglChaos.checked  = DEFAULTS.tglChaos;
     ui.tglPump.checked   = DEFAULTS.tglPump;
+    ui.tglReact.checked  = DEFAULTS.tglReact;
     ui.tglExact.checked  = DEFAULTS.tglExact;
     if(DEFAULTS.mouseRepel) ui.mouseRepel.checked = true;
     else ui.mouseAttract.checked = true;
@@ -1764,12 +2087,251 @@
   document.getElementById('defaults').addEventListener('click', restoreDefaults);
   document.getElementById('pause').addEventListener('click', ()=>{
     paused = !paused;
-    document.getElementById('pause').innerHTML = paused ? "RESUME <small>(SPC)</small>" : "PAUSE <small>(SPC)</small>";
+    document.getElementById('pause').innerHTML = paused ? "RESUME <small>(ESC)</small>" : "PAUSE <small>(ESC)</small>";
+    if(paused) setInvert(false);
   });
 
   ui.spin.addEventListener('dblclick', () => { ui.spin.value = '0.000'; });
   ui.tempo.addEventListener('dblclick', () => { ui.tempo.value = '1.00'; });
   ui.vortex.addEventListener('dblclick', () => { ui.vortex.value = '0.00'; });
+
+  // =========================
+  // GAME
+  // =========================
+  const game = {
+    enabled: false,
+    running: false,
+    showZone: true,
+    modeEmpty: true,
+    cx: 0, cy: 0,
+    half: 0.18,
+    threshold: 0.030,
+    coverageMax: 0.020,
+    grace: 0.7,
+    tDanger: 0,
+    time: 0,
+    lastT: 0,
+    over: false,
+    locked: false,
+  };
+
+  const gameWrap = document.getElementById('gameWrap');
+
+  // locked mode HUD refs
+  const glStatus = document.getElementById('glStatus');
+  const glTime = document.getElementById('glTime');
+  const glFill = document.getElementById('glFill');
+
+  function gameReadUI(){
+    game.enabled = gameUI.enabled.checked;
+    game.showZone = gameUI.showZone.checked;
+    game.modeEmpty = gameUI.modeEmpty.checked;
+    game.cx = parseFloat(gameUI.x.value);
+    game.cy = parseFloat(gameUI.y.value);
+    game.half = parseFloat(gameUI.size.value);
+    game.threshold = parseFloat(gameUI.thresh.value);
+    game.coverageMax = parseFloat(gameUI.coverage.value);
+    game.grace = parseFloat(gameUI.grace.value);
+  }
+
+  function gameLockUI(locked){
+    gameUI.modeEmpty.disabled = locked;
+    gameUI.modeNotEmpty.disabled = locked;
+    gameUI.x.disabled = locked;
+    gameUI.y.disabled = locked;
+    gameUI.size.disabled = locked;
+    gameUI.thresh.disabled = locked;
+    gameUI.coverage.disabled = locked;
+    gameUI.grace.disabled = locked;
+    gameUI.start.disabled = locked;
+    gameUI.stop.disabled = !locked;
+  }
+
+  function gameStart(){
+    gameReadUI();
+    if(!game.enabled) return;
+    game.running = true;
+    game.over = false;
+    game.time = 0;
+    game.tDanger = 0;
+    game.lastT = performance.now();
+    gameLockUI(true);
+    gameUI.status.textContent = 'RUNNING';
+    gameUI.status.style.color = '#0f0';
+    gameUI.overlay.style.display = 'none';
+    if(game.locked){
+      glStatus.textContent = 'RUNNING';
+      glStatus.style.color = '#0a0';
+      glTime.textContent = '0.0s';
+      glFill.textContent = '0%';
+    }
+  }
+
+  function gameStop(){
+    game.running = false;
+    gameLockUI(false);
+    gameUI.status.textContent = game.over ? 'GAME OVER' : 'STOPPED';
+    gameUI.status.style.color = game.over ? '#f44' : '#666';
+    if(game.locked){
+      glStatus.textContent = game.over ? 'GAME OVER' : 'STOPPED';
+      glStatus.style.color = game.over ? '#f44' : '#666';
+    }
+  }
+
+  function gameOver(){
+    game.over = true;
+    game.running = false;
+    gameLockUI(false);
+    gameUI.status.textContent = 'GAME OVER';
+    gameUI.status.style.color = '#f44';
+    gameUI.overTitle.textContent = 'GAME OVER';
+    gameUI.overTime.textContent = game.time.toFixed(1) + 's';
+    gameUI.overlay.style.display = '';
+    if(game.locked){
+      glStatus.textContent = 'GAME OVER';
+      glStatus.style.color = '#f44';
+    }
+  }
+
+  // field sampling: read occupancy of zone from field texture
+  function gameSampleField(){
+    const bounds = 2.2;
+    const x0 = Math.max(0, Math.floor(((game.cx - game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
+    const y0 = Math.max(0, Math.floor(((game.cy - game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
+    const x1 = Math.min(FIELD_SIZE, Math.ceil(((game.cx + game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
+    const y1 = Math.min(FIELD_SIZE, Math.ceil(((game.cy + game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if(w < 1 || h < 1) return 0;
+    const buf = new Float32Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldFlip]);
+    gl.readPixels(x0, y0, w, h, gl.RGBA, gl.FLOAT, buf);
+    let sum = 0;
+    const area = w * h;
+    for(let i = 0; i < area; i++){
+      const mass = buf[i * 4];
+      if(mass > game.threshold) sum++;
+    }
+    return sum / area;
+  }
+
+  function gameTick(){
+    if(!game.running || game.over || paused) return;
+    const now = performance.now();
+    const dt = (now - game.lastT) / 1000;
+    game.lastT = now;
+    game.time += dt;
+    const ts = game.time.toFixed(1) + 's';
+    gameUI.timer.textContent = ts;
+    if(game.locked) glTime.textContent = ts;
+  }
+
+  function gameCheck(){
+    if(!game.running || game.over) return;
+    const fill = gameSampleField();
+    const pct = (fill * 100).toFixed(1);
+    gameUI.fill.textContent = pct + '%';
+    if(game.locked) glFill.textContent = pct + '%';
+
+    const violated = game.modeEmpty
+      ? (fill > game.coverageMax)
+      : (fill < game.coverageMax);
+
+    if(violated){
+      game.tDanger += 1/15;
+      gameUI.fill.style.color = '#f44';
+      if(game.locked) glFill.style.color = '#f44';
+      if(game.tDanger >= game.grace){
+        gameOver();
+      }
+    } else {
+      game.tDanger = Math.max(0, game.tDanger - 0.5/15);
+      gameUI.fill.style.color = '#0a0';
+      if(game.locked) glFill.style.color = '#0a0';
+    }
+  }
+
+  // game panel toggle
+  document.getElementById('gameBtn').addEventListener('click', () => {
+    const showing = gameWrap.style.display !== 'none';
+    gameWrap.style.display = showing ? 'none' : '';
+    slidersWrap.style.display = showing ? (slidersVisible ? '' : 'none') : 'none';
+  });
+
+  gameUI.back.addEventListener('click', () => {
+    gameWrap.style.display = 'none';
+    slidersWrap.style.display = slidersVisible ? '' : 'none';
+  });
+
+  gameUI.enabled.addEventListener('change', () => {
+    gameReadUI();
+    if(!game.enabled && game.running) gameStop();
+  });
+  gameUI.showZone.addEventListener('change', () => { game.showZone = gameUI.showZone.checked; });
+  [gameUI.modeEmpty, gameUI.modeNotEmpty, gameUI.x, gameUI.y, gameUI.size,
+   gameUI.thresh, gameUI.coverage, gameUI.grace].forEach(el => {
+    el.addEventListener('input', gameReadUI);
+  });
+
+  gameUI.start.addEventListener('click', gameStart);
+  gameUI.stop.addEventListener('click', gameStop);
+  gameUI.retry.addEventListener('click', () => {
+    gameUI.overlay.style.display = 'none';
+    gameStart();
+  });
+
+  function enterLockedMode(){
+    game.locked = true;
+    document.body.classList.add('game-locked');
+    game.enabled = true;
+    game.showZone = true;
+    gameUI.enabled.checked = true;
+    gameUI.showZone.checked = true;
+    // ensure field is on (game needs it)
+    ui.tglField.checked = true;
+    syncUI();
+    // auto-start after a short delay for field to initialize
+    setTimeout(() => { gameStart(); }, 300);
+  }
+
+  document.getElementById('gameLock').addEventListener('click', () => {
+    gameReadUI();
+    // build locked URL
+    let parts = [];
+    let tg = '';
+    for(const [k, id] of TOGGLE_MAP){
+      tg += k + (ui[id].checked ? '1' : '0');
+    }
+    parts.push(tg);
+    parts.push('M' + (ui.mouseAttract.checked ? 'a' : 'r'));
+    for(const [k, id] of SLIDER_MAP){
+      parts.push(k + ui[id].value);
+    }
+    // game params
+    parts.push('g1');
+    parts.push('gs1');
+    parts.push('gm' + (gameUI.modeEmpty.checked ? '0' : '1'));
+    parts.push('gx' + gameUI.x.value);
+    parts.push('gy' + gameUI.y.value);
+    parts.push('gh' + gameUI.size.value);
+    parts.push('gt' + gameUI.thresh.value);
+    parts.push('gC' + gameUI.coverage.value);
+    parts.push('gg' + gameUI.grace.value);
+    parts.push('gL1');
+    const hash = parts.join('~');
+    const url = BASE_URL + '#' + hash;
+
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('gameLock');
+        const orig = btn.innerHTML;
+        btn.innerHTML = 'COPIED \u2713';
+        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+      });
+    } else {
+      prompt('Copy this URL:', url);
+    }
+  });
 
   // =========================
   // Keyboard
@@ -1802,6 +2364,9 @@
         break;
       case 'Escape':
         helpEl.classList.remove('show');
+        paused = !paused;
+        document.getElementById('pause').innerHTML = paused ? 'RESUME <small>(ESC)</small>' : 'PAUSE <small>(ESC)</small>';
+        if(paused) setInvert(false);
         break;
       case 'u': case 'U':
         document.body.classList.toggle('ui-hidden');
@@ -1816,8 +2381,7 @@
         break;
       case ' ':
         e.preventDefault();
-        paused = !paused;
-        document.getElementById('pause').innerHTML = paused ? 'RESUME <small>(SPC)</small>' : 'PAUSE <small>(SPC)</small>';
+        setInvert(true);
         break;
       case 'r': case 'R':
         reset();
@@ -1881,9 +2445,16 @@
         nudge(ui.spin, S);
         break;
       case '0':
-        viewRot = 0.0;
-        panX = 0; panY = 0;
-        ui.spin.value = '0.000';
+        if(ui.tglReact.checked){
+          nudge(ui.react, S);
+        } else {
+          viewRot = 0.0;
+          panX = 0; panY = 0;
+          ui.spin.value = '0.000';
+        }
+        break;
+      case '9':
+        nudge(ui.react, -S);
         break;
       case 'ArrowUp':
         e.preventDefault();
@@ -1974,6 +2545,43 @@
     }
   });
 
+  window.addEventListener('keyup', (e) => {
+    if(e.key === ' '){
+      setInvert(false);
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    setInvert(false);
+  });
+
+  // =========================
+  // Invert button (mobile + visual feedback)
+  // =========================
+  const invertBtn = document.getElementById('invertBtn');
+  const invertHud = document.getElementById('invertHud');
+  invertHud.textContent = 'INVERT';
+
+  function setInvert(on){
+    invertHold = on;
+    invertBtn.classList.toggle('active', on);
+    invertHud.classList.toggle('show', on);
+  }
+
+  invertBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    invertBtn.setPointerCapture(e.pointerId);
+    setInvert(true);
+  });
+  invertBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    setInvert(false);
+  });
+  invertBtn.addEventListener('pointercancel', (e) => {
+    e.preventDefault();
+    setInvert(false);
+  });
+
   // =========================
   // FPS
   // =========================
@@ -1981,6 +2589,11 @@
 
   // start
   reset();
+
+  // activate locked game mode if requested via URL
+  if(gameLockRequested){
+    enterLockedMode();
+  }
 
   gl.disable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
@@ -2021,7 +2634,9 @@
     const chaosOn  = ui.tglChaos.checked  ? 1 : 0;
     const pumpOn   = (ui.tglPump.checked && kernelOn) ? 1 : 0;
 
-    const mouseSign = ui.mouseAttract.checked ? -1.0 : 1.0;
+    const baseAttract = ui.mouseAttract.checked;
+    const effectiveAttract = invertHold ? !baseAttract : baseAttract;
+    const mouseSign = effectiveAttract ? -1.0 : 1.0;
 
     const damping = parseFloat(ui.damping.value);
     const force   = parseFloat(ui.force.value);
@@ -2042,6 +2657,7 @@
     const grav    = parseFloat(ui.grav.value);
     const pressure = parseFloat(ui.pressure.value);
     const pump    = parseFloat(ui.pump.value);
+    const react   = parseFloat(ui.react.value);
     const timeK   = parseFloat(ui.timeK.value);
     const timeMin = parseFloat(ui.timeMin.value);
     const charge  = parseFloat(ui.charge.value);
@@ -2096,7 +2712,7 @@
     // 0) Field: fade + deposit + blur
     // =========================
     {
-      const fieldWrite = 1 - fieldFlip;
+      let fieldWrite = 1 - fieldFlip;
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldWrite]);
       gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
@@ -2131,6 +2747,24 @@
       gl.bindVertexArray(vaoEmpty);
       gl.drawArrays(gl.POINTS, 0, activeN);
       gl.disable(gl.BLEND);
+
+      // Optional: local field reactions (annihilation + fission)
+      if(fieldOn === 1 && ui.tglReact.checked){
+        const reactWrite = 1 - fieldWrite;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[reactWrite]);
+        gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
+        gl.useProgram(progFieldReact);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldWrite]);
+        gl.uniform1i(uFieldReact.prev, 0);
+        gl.uniform2f(uFieldReact.texel, 1.0/FIELD_SIZE, 1.0/FIELD_SIZE);
+        gl.uniform1f(uFieldReact.charge, charge);
+        gl.uniform1f(uFieldReact.pressure, pressure);
+        gl.uniform1f(uFieldReact.react, react);
+        gl.bindVertexArray(vaoQuad);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        fieldWrite = reactWrite;
+      }
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, fboTemp);
       gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
@@ -2167,6 +2801,8 @@
     gl.uniform1ui(uPhys.frame, frame>>>0);
     gl.uniform1i(uPhys.kernelOn, kernelOn);
     gl.uniform1i(uPhys.fieldOn,  fieldOn);
+    gl.uniform1i(uPhys.reactOn, (fieldOn === 1 && ui.tglReact.checked) ? 1 : 0);
+    gl.uniform1f(uPhys.react, react);
     gl.uniform1i(uPhys.mouseOn,  mouseOn);
     gl.uniform1i(uPhys.chaosOn,  chaosOn);
     gl.uniform1i(uPhys.pumpOn,   pumpOn);
@@ -2281,6 +2917,25 @@
     gl.bindTexture(gl.TEXTURE_2D, trailTex[1-trailFlip]);
     gl.uniform1i(uBlit.tex, 0);
     gl.uniform1i(uBlit.palette, parseInt(ui.palette.value));
+
+    // zone overlay
+    const zShow = game.enabled && game.showZone ? 1 : 0;
+    gl.uniform1i(uBlit.zoneShow, zShow);
+    if(zShow){
+      const zAspect = viewW / viewH;
+      const zCs = Math.cos(-viewRot);
+      const zSn = Math.sin(-viewRot);
+      const lineW = 0.008 / Math.max(scale, 0.01);
+      gl.uniform4f(uBlit.zone, game.cx, game.cy, game.half, lineW);
+      const danger = game.running ? Math.min(1.0, game.tDanger / Math.max(game.grace, 0.01)) : 0.0;
+      gl.uniform1f(uBlit.zoneDanger, danger);
+      gl.uniform1i(uBlit.zoneMode, game.modeEmpty ? 0 : 1);
+      gl.uniform1f(uBlit.viewScale, scale);
+      gl.uniform1f(uBlit.cs, zCs);
+      gl.uniform1f(uBlit.sn, zSn);
+      gl.uniform2f(uBlit.pan, panX, panY);
+      gl.uniform1f(uBlit.aspect, zAspect);
+    }
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -2323,6 +2978,14 @@
       histDiv.style.display = '';
       histZEl.textContent = zH.map((v,k) => k+':'+v).join(' ');
       histIEl.textContent = iH.map((v,k) => 'abcde'[k]+':'+v).join(' ');
+    }
+
+    // =========================
+    // Game
+    // =========================
+    gameTick();
+    if(game.running && (frame & 15) === 0){
+      gameCheck();
     }
 
     frame = (frame + 1) >>> 0;
