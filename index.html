@@ -579,7 +579,7 @@
   // =========================
   // URL hash: encode/decode
   // =========================
-  const BASE_URL = 'https://mathorn1973.github.io/twist/';
+  const BASE_URL = 'https://evo.twistj.com/';
 
   // game UI refs needed for URL encode/decode (full wiring later)
   const gameUI = {
@@ -2232,6 +2232,7 @@
     const buf = new Float32Array(w * h * 4);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldFlip]);
     gl.readPixels(x0, y0, w, h, gl.RGBA, gl.FLOAT, buf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     let sum = 0;
     const area = w * h;
     for(let i = 0; i < area; i++){
@@ -2326,13 +2327,17 @@
   function enterLockedMode(){
     game.locked = true;
     document.body.classList.add('game-locked');
+    // ensure game state is read from UI
+    gameReadUI();
     game.enabled = true;
     game.showZone = true;
     gameUI.enabled.checked = true;
     gameUI.showZone.checked = true;
-    // ensure field is on (game needs it)
+    // ensure field and mouse are on (game needs them)
     ui.tglField.checked = true;
+    ui.tglMouse.checked = true;
     syncUI();
+    needLayout = true;
     // show start dialogue
     showGameStartScreen();
   }
@@ -2362,17 +2367,23 @@
     parts.push('gg' + gameUI.grace.value);
     parts.push('gL1');
     const hash = parts.join('~');
-    const url = BASE_URL + '#' + hash;
+    // use canonical URL for sharing, current page for local test
+    const shareUrl = BASE_URL + '#' + hash;
+    const localHash = '#' + hash;
 
+    // copy canonical URL
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(url).then(() => {
-        const btn = document.getElementById('gameLock');
-        const orig = btn.innerHTML;
-        btn.innerHTML = 'COPIED \u2713';
-        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        // apply locally and enter locked mode
+        try { history.replaceState(null, '', localHash); } catch(e){}
+        enterLockedMode();
+        needLayout = true;
       });
     } else {
-      prompt('Copy this URL:', url);
+      prompt('Copy this URL:', shareUrl);
+      try { history.replaceState(null, '', localHash); } catch(e){}
+      enterLockedMode();
+      needLayout = true;
     }
   });
 
@@ -2633,11 +2644,6 @@
   // start
   reset();
 
-  // activate locked game mode if requested via URL
-  if(gameLockRequested){
-    enterLockedMode();
-  }
-
   gl.disable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
 
@@ -2646,6 +2652,14 @@
   // =========================
   function loop(){
     if(needLayout) layout();
+
+    // activate locked mode on first frame (after layout and GL are ready)
+    if(gameLockRequested){
+      gameLockRequested = false;
+      enterLockedMode();
+      needLayout = true;
+      layout();
+    }
 
     const now = performance.now();
     const dt = now - lastT; lastT = now;
