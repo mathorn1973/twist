@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>TWIST | A Finite Rule with Unbounded Evolution</title>
+<title>TWIST-J | A Finite Rule with Unbounded Evolution</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body{
@@ -97,17 +97,18 @@
   .help-overlay h3:first-child{ margin-top:0; }
   .help-overlay .krow{ display:flex; justify-content:space-between; padding:2px 0; }
   .help-overlay .kk{ color:#00d2ff; min-width:90px; }
-  .ui-hidden .top,
-  .ui-hidden .hud,
-  .ui-hidden .panel,
-  .ui-hidden .help-overlay,
-  .ui-hidden .credit,
+  .ui-hidden .top{ display:none; }
+  .ui-hidden .hud{ display:none; }
+  .ui-hidden .panel{ display:none; }
+  .ui-hidden .help-overlay{ display:none; }
+  .ui-hidden .credit{ display:none; }
+  .ui-hidden .twistj-link{ display:none; }
   .ui-hidden .wrap{ height:100vh; }
 </style>
 </head>
 <body>
   <div class="top">
-    <div class="t">TWIST: A FINITE RULE WITH UNBOUNDED EVOLUTION</div>
+    <div class="t">TWIST-J: A FINITE RULE WITH UNBOUNDED EVOLUTION</div>
   </div>
 
   <div class="wrap">
@@ -246,12 +247,12 @@
 
     <div class="help-overlay" id="helpOverlay">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <h3 style="margin:0">TWIST</h3>
+        <h3 style="margin:0">TWIST-J</h3>
         <button onclick="document.getElementById('helpOverlay').classList.remove('show')" style="background:none;border:1px solid #2a2a36;color:#666;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px">&times; CLOSE</button>
       </div>
       <div style="color:#777;margin-bottom:8px;line-height:1.5">
         J-Operator: <span style="color:#00d2ff">J = 1 + &#950;&#8325;&sup2;</span> &mdash; a single algebraic axiom.<br>
-        Thue-Morse sequence serves as time driver in TWIST.<br>
+        Thue-Morse sequence serves as time driver in TWIST-J.<br>
         Kernel: z=Tr(x), t=TM(n), i=(z+2t) mod 5, x&#8592;g&#7522;(x).<br>
         Field: gyron &#8594; mass(R), d/e &#8594; charge(G/B).<br>
         &#8711;&#961;L = gravity, -&#8711;&#961;S = pressure, sign(&#961;Q)&middot;&#8711;&#961;Q = plasma. &#961; &#8712; [0,1].<br>
@@ -303,15 +304,14 @@
         Press <span style="color:#00d2ff">C</span> or the SHARE button to copy a URL encoding all current settings. Anyone opening the link starts with the same configuration. Explore, then share what you find.
       </div>
       <h3>LINKS</h3>
-      <div style="margin:4px 0"><a href="https://quantumangle.blogosvet.cz/" target="_blank" style="color:#00d2ff;text-decoration:none">quantumangle.blogosvet.cz</a></div>
-      <div style="margin:4px 0"><a href="https://x.com/amthorn73" target="_blank" style="color:#00d2ff;text-decoration:none">A. M. Thorn (@amthorn73) / X</a></div>
-      <div style="margin:4px 0"><a href="https://orcid.org/0009-0008-5463-278X" target="_blank" style="color:#00d2ff;text-decoration:none">ORCID: 0009-0008-5463-278X</a></div>
+      <div style="margin:4px 0"><a href="https://twistj.com" target="_blank" style="color:#00d2ff;text-decoration:none">twistj.com</a></div>
       <div style="margin-top:16px;text-align:center;color:#555;font-size:10px;letter-spacing:2px;line-height:1.8">
         ALWAYS THE SAME. FOREVER NEW.<br>
         <span style="color:#00d2ff;letter-spacing:3px">SIMPLIZIS.</span>
       </div>
     </div>
 
+    <a class="credit twistj-link" href="https://twistj.com" target="_blank" style="right:120px">twistj.com</a>
     <a class="credit" href="https://orcid.org/0009-0008-5463-278X" target="_blank">A. M. Thorn</a>
   </div>
 
