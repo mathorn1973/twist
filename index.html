@@ -424,10 +424,22 @@
     </div>
 
     <div id="gameOverlay" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:auto;z-index:5">
-      <div style="background:rgba(6,6,10,0.92);border:1px solid #1e1e28;border-radius:8px;padding:24px 36px">
-        <div style="color:#00d2ff;font-size:14px;letter-spacing:3px;margin-bottom:8px" id="gameOverTitle">GAME OVER</div>
-        <div style="color:#8a8a8a;font-size:20px;letter-spacing:2px;margin-bottom:12px" id="gameOverTime">12.3s</div>
-        <button id="gameRetry" style="font-size:12px;padding:8px 18px;letter-spacing:2px">TRY AGAIN</button>
+      <div style="background:rgba(6,6,10,0.92);border:1px solid #1e1e28;border-radius:8px;padding:28px 40px;min-width:220px">
+        <!-- Start screen -->
+        <div id="gameStartScreen" style="display:none">
+          <div style="color:#555;font-size:10px;letter-spacing:3px;margin-bottom:12px">LET US TWIST AGAIN</div>
+          <button id="gamePlayBtn" style="font-size:13px;padding:10px 24px;letter-spacing:2px;color:#00d2ff;border-color:#00d2ff">DEFEND THE ZONE</button>
+        </div>
+        <!-- Game over screen -->
+        <div id="gameEndScreen" style="display:none">
+          <div style="color:#f44;font-size:14px;letter-spacing:3px;margin-bottom:8px" id="gameOverTitle">GAME OVER</div>
+          <div style="color:#8a8a8a;font-size:22px;letter-spacing:2px;margin-bottom:16px" id="gameOverTime">12.3s</div>
+          <button id="gameRetry" style="font-size:13px;padding:10px 24px;letter-spacing:2px;margin-bottom:14px">TRY AGAIN</button>
+          <div style="display:flex;gap:12px;justify-content:center">
+            <a href="https://twistj.com" target="_blank" style="color:#444;font-size:9px;letter-spacing:2px;text-decoration:none;padding:4px 10px;border:1px solid #1e1e28;border-radius:4px">TWIST-J</a>
+            <a href="https://orcid.org/0009-0008-5463-278X" target="_blank" style="color:#444;font-size:9px;letter-spacing:2px;text-decoration:none;padding:4px 10px;border:1px solid #1e1e28;border-radius:4px">A. M. Thorn</a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -591,6 +603,9 @@
     overTime:     document.getElementById('gameOverTime'),
     overTitle:    document.getElementById('gameOverTitle'),
     retry:        document.getElementById('gameRetry'),
+    playBtn:      document.getElementById('gamePlayBtn'),
+    startScreen:  document.getElementById('gameStartScreen'),
+    endScreen:    document.getElementById('gameEndScreen'),
   };
 
   let gameLockRequested = false;
@@ -894,6 +909,7 @@
   uniform vec4 u_zone; // cx, cy, half, lineW
   uniform float u_zoneDanger; // 0=safe, 1=critical
   uniform int u_zoneMode; // 0=EMPTY(blue), 1=NOT_EMPTY(green)
+  uniform float u_time;
   uniform float u_viewScale;
   uniform float u_cs;
   uniform float u_sn;
@@ -928,16 +944,25 @@
       vec3 dangerCol = vec3(0.9, 0.1, 0.05);
       vec3 zoneCol = mix(safeCol, dangerCol, d);
 
-      // fill: barely visible, grows with danger
+      // blink: starts at d>0.4, frequency and intensity build with danger
+      float blinkPhase = 0.0;
+      if(d > 0.4){
+        float blinkT = (d - 0.4) / 0.6; // 0..1 over danger range
+        float freq = 3.0 + 12.0 * blinkT * blinkT; // 3 Hz -> 15 Hz
+        float pulse = sin(u_time * freq * 6.2832) * 0.5 + 0.5;
+        blinkPhase = pulse * blinkT * 0.5;
+      }
+
+      // fill: barely visible, grows with danger + blink
       if(outer < 0.0){
-        float fillAlpha = 0.03 + 0.12 * d;
+        float fillAlpha = 0.03 + 0.12 * d + blinkPhase * 0.2;
         c = mix(c, zoneCol, fillAlpha);
       }
 
-      // border: subtle, grows with danger
+      // border: subtle, grows with danger + blink
       bool onBorder = outer > -lw && outer < lw && min(dx,dy) < lw;
       if(onBorder){
-        float borderAlpha = 0.15 + 0.55 * d;
+        float borderAlpha = 0.15 + 0.55 * d + blinkPhase * 0.3;
         c = mix(c, zoneCol, borderAlpha);
       }
     }
@@ -1753,6 +1778,7 @@
     zoneShow: U(progBlit,'u_zoneShow'), zone: U(progBlit,'u_zone'),
     zoneDanger: U(progBlit,'u_zoneDanger'),
     zoneMode: U(progBlit,'u_zoneMode'),
+    time: U(progBlit,'u_time'),
     viewScale: U(progBlit,'u_viewScale'), cs: U(progBlit,'u_cs'), sn: U(progBlit,'u_sn'),
     pan: U(progBlit,'u_pan'), aspect: U(progBlit,'u_aspect'),
   };
@@ -2159,6 +2185,8 @@
     gameUI.status.textContent = 'RUNNING';
     gameUI.status.style.color = '#0f0';
     gameUI.overlay.style.display = 'none';
+    gameUI.startScreen.style.display = 'none';
+    gameUI.endScreen.style.display = 'none';
     if(game.locked){
       glStatus.textContent = 'RUNNING';
       glStatus.style.color = '#0a0';
@@ -2184,9 +2212,7 @@
     gameLockUI(false);
     gameUI.status.textContent = 'GAME OVER';
     gameUI.status.style.color = '#f44';
-    gameUI.overTitle.textContent = 'GAME OVER';
-    gameUI.overTime.textContent = game.time.toFixed(1) + 's';
-    gameUI.overlay.style.display = '';
+    showGameEndScreen();
     if(game.locked){
       glStatus.textContent = 'GAME OVER';
       glStatus.style.color = '#f44';
@@ -2276,9 +2302,26 @@
   gameUI.start.addEventListener('click', gameStart);
   gameUI.stop.addEventListener('click', gameStop);
   gameUI.retry.addEventListener('click', () => {
-    gameUI.overlay.style.display = 'none';
     gameStart();
   });
+
+  gameUI.playBtn.addEventListener('click', () => {
+    gameStart();
+  });
+
+  function showGameStartScreen(){
+    gameUI.startScreen.style.display = '';
+    gameUI.endScreen.style.display = 'none';
+    gameUI.playBtn.textContent = game.modeEmpty ? 'DEFEND THE ZONE' : 'FILL THE ZONE';
+    gameUI.overlay.style.display = '';
+  }
+
+  function showGameEndScreen(){
+    gameUI.startScreen.style.display = 'none';
+    gameUI.endScreen.style.display = '';
+    gameUI.overTime.textContent = game.time.toFixed(1) + 's';
+    gameUI.overlay.style.display = '';
+  }
 
   function enterLockedMode(){
     game.locked = true;
@@ -2290,8 +2333,8 @@
     // ensure field is on (game needs it)
     ui.tglField.checked = true;
     syncUI();
-    // auto-start after a short delay for field to initialize
-    setTimeout(() => { gameStart(); }, 300);
+    // show start dialogue
+    showGameStartScreen();
   }
 
   document.getElementById('gameLock').addEventListener('click', () => {
@@ -2930,6 +2973,7 @@
       const danger = game.running ? Math.min(1.0, game.tDanger / Math.max(game.grace, 0.01)) : 0.0;
       gl.uniform1f(uBlit.zoneDanger, danger);
       gl.uniform1i(uBlit.zoneMode, game.modeEmpty ? 0 : 1);
+      gl.uniform1f(uBlit.time, performance.now() / 1000.0);
       gl.uniform1f(uBlit.viewScale, scale);
       gl.uniform1f(uBlit.cs, zCs);
       gl.uniform1f(uBlit.sn, zSn);
