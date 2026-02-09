@@ -381,7 +381,7 @@
       <div class="krow"><span class="kk">6</span><span>EXACT IFS on/off (canonical step)</span></div>
       <div class="krow"><span class="kk">M</span><span>mouse: repel / attract</span></div>
       <div class="krow"><span class="kk">P / N</span><span>more / fewer particles</span></div>
-      <div class="krow"><span class="kk">Shift+P/N</span><span>beyond limit (add ~vm1200 to URL for 20M+)</span></div>
+      <div class="krow"><span class="kk">Shift+P/N</span><span>beyond slider (vm2000=22M, vm8000=87M, vm16000=175M)</span></div>
       <div class="krow"><span class="kk">7 / 8</span><span>palette</span></div>
       <h3>CAMERA</h3>
       <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
@@ -684,7 +684,7 @@
       parts.push('gg' + gameUI.grace.value);
     }
     // preserve VRAM budget if non-default
-    if(VRAM_BUDGET > (isDesktop ? 400 : 200)){
+    if(VRAM_BUDGET > (isDesktop ? 800 : 300)){
       parts.push('vm' + VRAM_BUDGET);
     }
     return parts.join('~');
@@ -824,19 +824,20 @@
   const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
   const isDesktop = !window.matchMedia('(pointer:coarse)').matches;
 
-  // VRAM budget: 400MB default, override with vm=X in URL hash (e.g. ~vm1200)
-  let VRAM_BUDGET = isDesktop ? 400 : 200; // MB
+  // VRAM budget: override with ~vm=X in URL hash (MB)
+  // Each particle: 6 textures (state/k0/k1 x2 ping-pong) x RGBA32F = 96 bytes
+  let VRAM_BUDGET = isDesktop ? 800 : 300;
   {
     const h = location.hash;
     const vm = h.match(/vm(\d+)/);
     if(vm) VRAM_BUDGET = parseInt(vm[1]);
   }
-  const maxPixels = Math.min(VRAM_BUDGET * 1024 * 1024 / 48, maxTexSize * maxTexSize);
-  const TEX_SIZE_CAP = VRAM_BUDGET > 600 ? 5120 : 3200;
-  const TEX_SIZE = Math.min(TEX_SIZE_CAP, Math.floor(Math.sqrt(maxPixels)));
+  const BYTES_PER_PARTICLE = 96;
+  const maxPixels = Math.min(VRAM_BUDGET * 1024 * 1024 / BYTES_PER_PARTICLE, maxTexSize * maxTexSize);
+  const TEX_SIZE = Math.min(maxTexSize, Math.floor(Math.sqrt(maxPixels)));
   const N        = TEX_SIZE * TEX_SIZE;
   const FIELD_SIZE = 256;
-  const MAX_POW  = Math.ceil(Math.log2(N));
+  const MAX_POW  = Math.min(30, Math.ceil(Math.log2(N)));
 
   console.log('TWIST-J | TEX:', TEX_SIZE, ' N:', N.toLocaleString(),
     ' MAX_POW: 2^'+MAX_POW, ' VRAM:', VRAM_BUDGET+'MB',
@@ -2400,7 +2401,7 @@
     parts.push('gC' + gameUI.coverage.value);
     parts.push('gg' + gameUI.grace.value);
     parts.push('gL1');
-    if(VRAM_BUDGET > (isDesktop ? 400 : 200)){
+    if(VRAM_BUDGET > (isDesktop ? 800 : 300)){
       parts.push('vm' + VRAM_BUDGET);
     }
     const hash = parts.join('~');
@@ -2527,13 +2528,13 @@
             nudge(ui.particles, 1);
           } else if(cur >= curMax && curMax >= MAX_POW){
             console.log('CEILING: N=' + N.toLocaleString() + ' (2^' + MAX_POW + ').' +
-              ' Add ~vm1200 to URL hash for 20M+ particles, then reload.');
+              ' Add ~vm2000 (22M), ~vm8000 (87M), or ~vm16000 (175M) to URL, then reload.');
             break;
           } else {
             nudge(ui.particles, 1);
           }
           const pw = parseInt(ui.particles.value);
-          const actual = Math.min(N, 1 << pw);
+          const actual = Math.min(N, 2 ** pw);
           console.log('CHEAT: 2^' + pw + ' = ' + actual.toLocaleString() +
             ' / ' + N.toLocaleString() + ' allocated');
         }
@@ -2788,7 +2789,7 @@
     const vortex  = parseFloat(ui.vortex.value);
     const tempo   = parseFloat(ui.tempo.value);
 
-    activeN = Math.min(N, 1 << parseInt(ui.particles.value));
+    activeN = Math.min(N, 2 ** parseInt(ui.particles.value));
     pcEl.textContent = activeN.toLocaleString();
 
     const bounds = 2.2;
