@@ -208,7 +208,7 @@
       <div id="slidersWrap">
       <div class="row" id="rowParticles">
         <label>PARTICLES <small>(P/N)</small></label>
-        <input id="particles" type="range" min="12" max="24" step="1" value="19" />
+        <input id="particles" type="range" min="12" max="23" step="1" value="19" />
       </div>
 
       <div class="row" id="rowTempo">
@@ -381,6 +381,7 @@
       <div class="krow"><span class="kk">6</span><span>EXACT IFS on/off (canonical step)</span></div>
       <div class="krow"><span class="kk">M</span><span>mouse: repel / attract</span></div>
       <div class="krow"><span class="kk">P / N</span><span>more / fewer particles</span></div>
+      <div class="krow"><span class="kk">Shift+P/N</span><span>beyond limit (add ~vm1200 to URL for 20M+)</span></div>
       <div class="krow"><span class="kk">7 / 8</span><span>palette</span></div>
       <h3>CAMERA</h3>
       <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
@@ -682,6 +683,10 @@
       parts.push('gC' + gameUI.coverage.value);
       parts.push('gg' + gameUI.grace.value);
     }
+    // preserve VRAM budget if non-default
+    if(VRAM_BUDGET > (isDesktop ? 400 : 200)){
+      parts.push('vm' + VRAM_BUDGET);
+    }
     return parts.join('~');
   }
 
@@ -817,12 +822,26 @@
   // GPU params
   // =========================
   const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-  const maxPixels = Math.min(400 * 1024 * 1024 / 48, maxTexSize * maxTexSize);
-  const TEX_SIZE = Math.min(3200, Math.floor(Math.sqrt(maxPixels)));
+  const isDesktop = !window.matchMedia('(pointer:coarse)').matches;
+
+  // VRAM budget: 400MB default, override with vm=X in URL hash (e.g. ~vm1200)
+  let VRAM_BUDGET = isDesktop ? 400 : 200; // MB
+  {
+    const h = location.hash;
+    const vm = h.match(/vm(\d+)/);
+    if(vm) VRAM_BUDGET = parseInt(vm[1]);
+  }
+  const maxPixels = Math.min(VRAM_BUDGET * 1024 * 1024 / 48, maxTexSize * maxTexSize);
+  const TEX_SIZE_CAP = VRAM_BUDGET > 600 ? 5120 : 3200;
+  const TEX_SIZE = Math.min(TEX_SIZE_CAP, Math.floor(Math.sqrt(maxPixels)));
   const N        = TEX_SIZE * TEX_SIZE;
   const FIELD_SIZE = 256;
+  const MAX_POW  = Math.ceil(Math.log2(N));
 
-  console.log('TEX_SIZE:', TEX_SIZE, ' N:', N.toLocaleString(), ' MAX_TEXTURE_SIZE:', maxTexSize);
+  console.log('TWIST-J | TEX:', TEX_SIZE, ' N:', N.toLocaleString(),
+    ' MAX_POW: 2^'+MAX_POW, ' VRAM:', VRAM_BUDGET+'MB',
+    isDesktop ? '(desktop)' : '(mobile)',
+    ' GPU_MAX_TEX:', maxTexSize);
   pcEl.textContent = N.toLocaleString();
   let activeN = N;
 
@@ -2381,6 +2400,9 @@
     parts.push('gC' + gameUI.coverage.value);
     parts.push('gg' + gameUI.grace.value);
     parts.push('gL1');
+    if(VRAM_BUDGET > (isDesktop ? 400 : 200)){
+      parts.push('vm' + VRAM_BUDGET);
+    }
     const hash = parts.join('~');
     // use canonical URL for sharing, current page for local test
     const shareUrl = BASE_URL + '#' + hash;
@@ -2496,8 +2518,38 @@
       case 'p':
         nudge(ui.particles, S);
         break;
+      case 'P':
+        {
+          const cur = parseInt(ui.particles.value);
+          const curMax = parseInt(ui.particles.max);
+          if(cur >= curMax && curMax < MAX_POW){
+            ui.particles.max = String(curMax + 1);
+            nudge(ui.particles, 1);
+          } else if(cur >= curMax && curMax >= MAX_POW){
+            console.log('CEILING: N=' + N.toLocaleString() + ' (2^' + MAX_POW + ').' +
+              ' Add ~vm1200 to URL hash for 20M+ particles, then reload.');
+            break;
+          } else {
+            nudge(ui.particles, 1);
+          }
+          const pw = parseInt(ui.particles.value);
+          const actual = Math.min(N, 1 << pw);
+          console.log('CHEAT: 2^' + pw + ' = ' + actual.toLocaleString() +
+            ' / ' + N.toLocaleString() + ' allocated');
+        }
+        break;
       case 'n':
         nudge(ui.particles, -S);
+        break;
+      case 'N':
+        {
+          nudge(ui.particles, -1);
+          const cur = parseInt(ui.particles.value);
+          const curMax = parseInt(ui.particles.max);
+          if(curMax > 24 && cur < curMax){
+            ui.particles.max = String(Math.max(24, cur + 1));
+          }
+        }
         break;
       case '+': case '=':
         nudge(ui.scale, S * 5);
@@ -2862,22 +2914,27 @@
     }
 
     // =========================
-    // 1) Physics step
+    // 1) Physics step (sub-stepped for smoother motion)
     // =========================
+    const reactOn = (fieldOn === 1 && ui.tglReact.checked) ? 1 : 0;
+    const substeps = reactOn ? 2 : 1;
+    const tempoSub = tempo / substeps;
+
+    for(let sub = 0; sub < substeps; sub++){
     const activeRows = Math.min(TEX_SIZE, Math.ceil(activeN / TEX_SIZE));
     gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[1-partFlip]);
     gl.viewport(0,0,TEX_SIZE,activeRows);
     gl.useProgram(progPhys);
 
     gl.uniform1i(uPhys.tm, tm);
-    gl.uniform1ui(uPhys.frame, frame>>>0);
+    gl.uniform1ui(uPhys.frame, (frame * substeps + sub)>>>0);
     gl.uniform1i(uPhys.kernelOn, kernelOn);
     gl.uniform1i(uPhys.fieldOn,  fieldOn);
-    gl.uniform1i(uPhys.reactOn, (fieldOn === 1 && ui.tglReact.checked) ? 1 : 0);
+    gl.uniform1i(uPhys.reactOn, reactOn);
     gl.uniform1f(uPhys.react, react);
     gl.uniform1i(uPhys.mouseOn,  mouseOn);
     gl.uniform1i(uPhys.chaosOn,  chaosOn);
-    gl.uniform1i(uPhys.pumpOn,   pumpOn);
+    gl.uniform1i(uPhys.pumpOn,   (sub === 0) ? pumpOn : 0);
     gl.uniform1i(uPhys.exactIFS, ui.tglExact.checked ? 1 : 0);
 
     gl.uniform1f(uPhys.grav, (fieldOn ? grav : 0.0));
@@ -2897,11 +2954,11 @@
     gl.uniform2f(uPhys.fieldTexel, 1.0/FIELD_SIZE, 1.0/FIELD_SIZE);
     gl.uniform1f(uPhys.timeK, fieldOn ? timeK : 0.0);
     gl.uniform1f(uPhys.timeMin, timeMin);
-    gl.uniform1f(uPhys.tempo, tempo);
+    gl.uniform1f(uPhys.tempo, tempoSub);
     gl.uniform1f(uPhys.vortex, vortex);
 
     const kickRatio = kickFrames > 0 ? kickFrames / 180.0 : 0.0;
-    const kickStr = kickRatio * 0.05;
+    const kickStr = (kickRatio * 0.05) / substeps;
     gl.uniform1f(uPhys.kick, kickStr);
 
     const forceEff = kickFrames > 0 ? force * (1.0 - 0.9 * kickRatio) : force;
@@ -2929,6 +2986,7 @@
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     partFlip = 1 - partFlip;
+    } // end substeps
 
     // =========================
     // 2) Trail: fade
