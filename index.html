@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>TWIST | Kernel + Pole + Náboj + Tlak + Čas</title>
+<title>TWIST | A Finite Rule with Unbounded Evolution</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body{
@@ -17,7 +17,6 @@
     padding:10px 16px; border-bottom:1px solid #141418; background:#06060a;
   }
   .top .t{ color:#00d2ff; letter-spacing:3px; font-size:12px; }
-  .top .a{ color:#4a4a4a; font-size:11px; }
   .wrap{ position:relative; width:100%; height:calc(100vh - 44px); }
   canvas{ width:100%; height:100%; display:block; cursor:crosshair; touch-action:none; }
   .hud{
@@ -49,9 +48,13 @@
     .btn-bar button{ font-size:inherit; padding:revert; }
   }
   .credit{
-    position:absolute; bottom:4px; right:14px;
-    font-size:8px; color:#2a2a36; pointer-events:none; letter-spacing:1px;
+    position:absolute; bottom:8px; right:14px;
+    font-size:9px; color:#4a4a56; pointer-events:auto;
+    letter-spacing:1px; text-decoration:none;
+    padding:4px 8px; border:1px solid #1a1a24;
+    border-radius:4px; background:rgba(6,6,10,0.7);
   }
+  .credit:hover{ color:#00d2ff; border-color:#2a2a36; }
   .row{
     pointer-events:auto; display:flex; gap:10px; align-items:center;
     padding:6px 10px; border:1px solid #1e1e28;
@@ -94,14 +97,9 @@
   .help-overlay h3:first-child{ margin-top:0; }
   .help-overlay .krow{ display:flex; justify-content:space-between; padding:2px 0; }
   .help-overlay .kk{ color:#00d2ff; min-width:90px; }
-  .help-hint{
-    position:absolute; bottom:14px; right:14px;
-    font-size:10px; color:#444; pointer-events:none;
-  }
   .ui-hidden .top,
   .ui-hidden .hud,
   .ui-hidden .panel,
-  .ui-hidden .help-hint,
   .ui-hidden .help-overlay,
   .ui-hidden .credit,
   .ui-hidden .wrap{ height:100vh; }
@@ -109,58 +107,53 @@
 </head>
 <body>
   <div class="top">
-    <div class="t">TWIST // KERNEL + POLE + NÁBOJ + TLAK + ČAS</div>
-    <div class="a">
-      JÁDRO: z=Tr(x), t=TM(n), i=(z+2t) mod 5, x←gᵢ(x).
-      POLE: gyron → hmota(R), d/e → náboj(G/B). ∇ρL = gravitace, -∇ρS = tlak, sign(ρQ)·∇ρQ = plazma. ρ ∈ [0,1].
-      ČAS: dτ/dn = 1/(1+K·ρ). POHON: gyron kopanec. PŘESNÝ: pos=K(pos). MYŠ: odpuz / tahni.
-      KOLEČKO: zoom. SHIFT+KOLEČKO: rotace. DOTYK: 1prst=myš, 2prsty=zoom+rotace.
-    </div>
+    <div class="t">TWIST: A FINITE RULE WITH UNBOUNDED EVOLUTION</div>
   </div>
 
   <div class="wrap">
     <canvas id="c"></canvas>
 
     <div class="hud">
-      <div>ČÁSTICE <span class="v" id="pc">0</span></div>
+      <div>PARTICLES <span class="v" id="pc">0</span></div>
       <div>FPS <span class="v" id="fps">0</span></div>
       <div>TM <span class="v" id="tm">0</span></div>
-      <div>ROT <span class="v" id="rotv">0</span>°</div>
+      <div>ROT <span class="v" id="rotv">0</span>&deg;</div>
       <div id="histDiv" style="display:none">z <span class="v" id="histZ">-</span> i <span class="v" id="histI">-</span></div>
     </div>
 
     <div class="panel">
       <div class="row" id="rowModules">
-        <label>MODULY</label>
+        <label>MODULES</label>
         <div class="tog">
-          <label><input type="checkbox" id="tglKernel" checked>JÁDRO <small>(1)</small></label>
-          <label><input type="checkbox" id="tglField"  checked>POLE <small>(2)</small></label>
-          <label><input type="checkbox" id="tglMouse"  checked>MYŠ <small>(3)</small></label>
+          <label><input type="checkbox" id="tglKernel" checked>KERNEL <small>(1)</small></label>
+          <label><input type="checkbox" id="tglField"  checked>FIELD <small>(2)</small></label>
+          <label><input type="checkbox" id="tglMouse"  checked>MOUSE <small>(3)</small></label>
           <label><input type="checkbox" id="tglChaos"  checked>CHAOS <small>(4)</small></label>
-          <label><input type="checkbox" id="tglPump" checked>POHON <small>(5)</small></label>
-          <label><input type="checkbox" id="tglExact">PŘESNÝ <small>(6)</small></label>
+          <label><input type="checkbox" id="tglPump" checked>PUMP <small>(5)</small></label>
+          <label><input type="checkbox" id="tglExact">EXACT <small>(6)</small></label>
         </div>
       </div>
 
       <div class="row" id="rowMouseMode">
-        <label>MYŠ REŽIM <small>(M)</small></label>
+        <label>MOUSE MODE <small>(M)</small></label>
         <div class="tog">
-          <label><input type="radio" name="mouseMode" id="mouseRepel">ODPUZ</label>
-          <label><input type="radio" name="mouseMode" id="mouseAttract" checked>TAHNI</label>
+          <label><input type="radio" name="mouseMode" id="mouseRepel">REPEL</label>
+          <label><input type="radio" name="mouseMode" id="mouseAttract" checked>ATTRACT</label>
+          <label style="margin-left:6px;color:#555;font-size:10px;cursor:pointer" onclick="document.getElementById('helpOverlay').classList.toggle('show')">H HELP</label>
         </div>
       </div>
 
       <div class="btn-bar">
-        <button id="panelHide">SKRÝT <small>(TAB)</small></button>
+        <button id="panelHide">HIDE <small>(TAB)</small></button>
         <button id="reset">RESET <small>(R)</small></button>
-        <button id="defaults">VÝCHOZÍ <small>(B)</small></button>
-        <button id="pause">PAUZA <small>(SPC)</small></button>
-        <button id="share">SDÍLET <small>(C)</small></button>
+        <button id="defaults">DEFAULTS <small>(B)</small></button>
+        <button id="pause">PAUSE <small>(SPC)</small></button>
+        <button id="share">SHARE <small>(C)</small></button>
       </div>
 
       <div id="slidersWrap">
       <div class="row" id="rowParticles">
-        <label>ČÁSTICE <small>(P/N)</small></label>
+        <label>PARTICLES <small>(P/N)</small></label>
         <input id="particles" type="range" min="12" max="24" step="1" value="19" />
       </div>
 
@@ -170,12 +163,12 @@
       </div>
 
       <div class="row" id="rowDamping">
-        <label>TLUMENÍ <small>([ ])</small></label>
+        <label>DAMPING <small>([ ])</small></label>
         <input id="damping" type="range" min="0.50" max="1.000" step="0.001" value="0.677" />
       </div>
 
       <div class="row" id="rowForce">
-        <label>SÍLA IFS <small>(; ')</small></label>
+        <label>IFS FORCE <small>(; ')</small></label>
         <input id="force" type="range" min="0.000" max="1.000" step="0.001" value="0.3" />
       </div>
 
@@ -185,126 +178,151 @@
       </div>
 
       <div class="row" id="rowFade">
-        <label>STOPA <small>(I K)</small></label>
+        <label>TRAIL <small>(I K)</small></label>
         <input id="fade" type="range" min="0.50" max="1.000" step="0.001" value="0.69" />
       </div>
 
       <div class="row" id="rowScale">
-        <label>MĚŘÍTKO <small>(+ −)</small></label>
+        <label>SCALE <small>(+ &minus;)</small></label>
         <input id="scale" type="range" min="0.05" max="5.00" step="0.01" value="0.65" />
       </div>
 
       <div class="row" id="rowSpin">
-        <label>ROTACE <small>(← →)</small></label>
+        <label>SPIN <small>(&larr; &rarr;)</small></label>
         <input id="spin" type="range" min="-0.050" max="0.050" step="0.001" value="0.000" />
       </div>
 
       <div class="row" id="rowPalette">
-        <label>BARVY <small>(7 8)</small></label>
+        <label>PALETTE <small>(7 8)</small></label>
         <input id="palette" type="range" min="0" max="10" step="1" value="1" />
       </div>
 
       <div class="row" id="rowFieldFade">
-        <label>POLE FADE <small>(O L)</small></label>
+        <label>FIELD FADE <small>(O L)</small></label>
         <input id="ffield" type="range" min="0.50" max="1.000" step="0.001" value="0.929" />
       </div>
 
       <div class="row" id="rowDeposit">
-        <label>HUSTOTA <small>(F V)</small></label>
+        <label>DENSITY <small>(F V)</small></label>
         <input id="deposit" type="range" min="1" max="50" step="1" value="3" />
       </div>
 
       <div class="row" id="rowGrav">
-        <label>GRAVITACE <small>(↑ ↓)</small></label>
+        <label>GRAVITY <small>(&uarr; &darr;)</small></label>
         <input id="grav" type="range" min="0.000" max="2.000" step="0.001" value="1" />
       </div>
 
       <div class="row" id="rowPressure">
-        <label>TLAK <small>(, .)</small></label>
+        <label>PRESSURE <small>(, .)</small></label>
         <input id="pressure" type="range" min="0.000" max="2.000" step="0.001" value="1.93" />
       </div>
 
       <div class="row" id="rowTimeK">
-        <label>ČAS K <small>(W S)</small></label>
+        <label>TIME K <small>(W S)</small></label>
         <input id="timeK" type="range" min="0" max="100" step="1" value="38" />
       </div>
 
       <div class="row" id="rowTimeMin">
-        <label>ČAS MIN <small>(E D)</small></label>
+        <label>TIME MIN <small>(E D)</small></label>
         <input id="timeMin" type="range" min="0.05" max="1.00" step="0.01" value="0.07" />
       </div>
 
       <div class="row" id="rowCharge">
-        <label>NÁBOJ <small>(Q A)</small></label>
+        <label>CHARGE <small>(Q A)</small></label>
         <input id="charge" type="range" min="0.000" max="10.00" step="0.01" value="5" />
       </div>
 
       <div class="row" id="rowVortex">
-        <label>VÍR <small>(&lt; &gt;)</small></label>
+        <label>VORTEX <small>(&lt; &gt;)</small></label>
         <input id="vortex" type="range" min="0.00" max="1.00" step="0.01" value="0.00" />
       </div>
 
       <div class="row" id="rowPump">
-        <label>POHON <small>(T G)</small></label>
+        <label>PUMP <small>(T G)</small></label>
         <input id="pump" type="range" min="0.000" max="0.200" step="0.001" value="0.099" />
       </div>
       </div>
     </div>
 
     <div class="help-overlay" id="helpOverlay">
-      <h3>PŘEPÍNAČE</h3>
-      <div class="krow"><span class="kk">SPACE</span><span>pauza / pokračovat</span></div>
-      <div class="krow"><span class="kk">R</span><span>reset (nové částice, zachová nastavení)</span></div>
-      <div class="krow"><span class="kk">B</span><span>výchozí (reset + všechny slidery na default)</span></div>
-      <div class="krow"><span class="kk">1</span><span>JÁDRO on/off</span></div>
-      <div class="krow"><span class="kk">2</span><span>POLE on/off</span></div>
-      <div class="krow"><span class="kk">3</span><span>MYŠ on/off</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h3 style="margin:0">TWIST</h3>
+        <button onclick="document.getElementById('helpOverlay').classList.remove('show')" style="background:none;border:1px solid #2a2a36;color:#666;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px">&times; CLOSE</button>
+      </div>
+      <div style="color:#777;margin-bottom:8px;line-height:1.5">
+        J-Operator: <span style="color:#00d2ff">J = 1 + &#950;&#8325;&sup2;</span> &mdash; a single algebraic axiom.<br>
+        Thue-Morse sequence serves as time driver in TWIST.<br>
+        Kernel: z=Tr(x), t=TM(n), i=(z+2t) mod 5, x&#8592;g&#7522;(x).<br>
+        Field: gyron &#8594; mass(R), d/e &#8594; charge(G/B).<br>
+        &#8711;&#961;L = gravity, -&#8711;&#961;S = pressure, sign(&#961;Q)&middot;&#8711;&#961;Q = plasma. &#961; &#8712; [0,1].<br>
+        Time: d&#964;/dn = 1/(1+K&middot;&#961;).
+      </div>
+      <h3>TOGGLES</h3>
+      <div class="krow"><span class="kk">SPACE</span><span>pause / resume</span></div>
+      <div class="krow"><span class="kk">R</span><span>reset (new particles, keep settings)</span></div>
+      <div class="krow"><span class="kk">B</span><span>defaults (reset + all sliders to default)</span></div>
+      <div class="krow"><span class="kk">1</span><span>KERNEL on/off</span></div>
+      <div class="krow"><span class="kk">2</span><span>FIELD on/off</span></div>
+      <div class="krow"><span class="kk">3</span><span>MOUSE on/off</span></div>
       <div class="krow"><span class="kk">4</span><span>CHAOS on/off</span></div>
-      <div class="krow"><span class="kk">5</span><span>POHON on/off</span></div>
-      <div class="krow"><span class="kk">6</span><span>PŘESNÝ IFS on/off (kanonický krok)</span></div>
-      <div class="krow"><span class="kk">M</span><span>myš: odpuz / tahni</span></div>
-      <div class="krow"><span class="kk">P / N</span><span>více / méně částic</span></div>
-      <div class="krow"><span class="kk">7 / 8</span><span>barvy (paleta)</span></div>
-      <h3>KAMERA</h3>
+      <div class="krow"><span class="kk">5</span><span>PUMP on/off</span></div>
+      <div class="krow"><span class="kk">6</span><span>EXACT IFS on/off (canonical step)</span></div>
+      <div class="krow"><span class="kk">M</span><span>mouse: repel / attract</span></div>
+      <div class="krow"><span class="kk">P / N</span><span>more / fewer particles</span></div>
+      <div class="krow"><span class="kk">7 / 8</span><span>palette</span></div>
+      <h3>CAMERA</h3>
       <div class="krow"><span class="kk">+ / -</span><span>zoom</span></div>
-      <div class="krow"><span class="kk">← / →</span><span>rotace (auto-spin)</span></div>
-      <div class="krow"><span class="kk">0</span><span>reset rotace + posun + spin</span></div>
-      <div class="krow"><span class="kk">Shift+tažení</span><span>posun kamery (pan)</span></div>
-      <h3>FYZIKA</h3>
-      <div class="krow"><span class="kk">↑ / ↓</span><span>gravitace</span></div>
-      <div class="krow"><span class="kk">[ / ]</span><span>tlumení</span></div>
-      <div class="krow"><span class="kk">; / '</span><span>síla IFS</span></div>
-      <div class="krow"><span class="kk">, / .</span><span>tlak</span></div>
-      <div class="krow"><span class="kk">Q / A</span><span>náboj</span></div>
-      <div class="krow"><span class="kk">&lt; / &gt;</span><span>vír (orbit vs pád)</span></div>
-      <div class="krow"><span class="kk">W / S</span><span>čas K</span></div>
-      <div class="krow"><span class="kk">E / D</span><span>čas min</span></div>
-      <div class="krow"><span class="kk">T / G</span><span>pohon (pump)</span></div>
-      <div class="krow"><span class="kk">F / V</span><span>hustota (deposit multiplier)</span></div>
+      <div class="krow"><span class="kk">&#8592; / &#8594;</span><span>spin (auto-rotate)</span></div>
+      <div class="krow"><span class="kk">0</span><span>reset rotation + pan + spin</span></div>
+      <div class="krow"><span class="kk">Shift+drag</span><span>pan camera</span></div>
+      <div class="krow"><span class="kk">Wheel</span><span>zoom toward cursor</span></div>
+      <div class="krow"><span class="kk">Shift+Wheel</span><span>rotate</span></div>
+      <div class="krow"><span class="kk">Touch</span><span>1 finger = mouse, 2 fingers = zoom + rotate</span></div>
+      <h3>PHYSICS</h3>
+      <div class="krow"><span class="kk">&#8593; / &#8595;</span><span>gravity</span></div>
+      <div class="krow"><span class="kk">[ / ]</span><span>damping</span></div>
+      <div class="krow"><span class="kk">; / '</span><span>IFS force</span></div>
+      <div class="krow"><span class="kk">, / .</span><span>pressure</span></div>
+      <div class="krow"><span class="kk">Q / A</span><span>charge</span></div>
+      <div class="krow"><span class="kk">&lt; / &gt;</span><span>vortex (orbit vs fall)</span></div>
+      <div class="krow"><span class="kk">W / S</span><span>time K</span></div>
+      <div class="krow"><span class="kk">E / D</span><span>time min</span></div>
+      <div class="krow"><span class="kk">T / G</span><span>pump strength</span></div>
+      <div class="krow"><span class="kk">F / V</span><span>density (deposit multiplier)</span></div>
       <div class="krow"><span class="kk">Z / X</span><span>chaos</span></div>
-      <div class="krow"><span class="kk">I / K</span><span>stopa (fade)</span></div>
-      <div class="krow"><span class="kk">O / L</span><span>pole fade</span></div>
-      <div class="krow"><span class="kk">J / Y</span><span>tempo (zpomalit / zrychlit)</span></div>
-      <h3>NÁPOVĚDA</h3>
-      <div class="krow"><span class="kk">H</span><span>zobrazit / skrýt</span></div>
-      <div class="krow"><span class="kk">U</span><span>skrýt / ukázat vše (čisté plátno)</span></div>
-      <div class="krow"><span class="kk">TAB</span><span>skrýt / ukázat menu</span></div>
-      <div class="krow"><span class="kk">C</span><span>sdílet (kopírovat odkaz s nastavením)</span></div>
-      <div class="krow"><span class="kk">ESC</span><span>zavřít nápovědu</span></div>
+      <div class="krow"><span class="kk">I / K</span><span>trail (fade)</span></div>
+      <div class="krow"><span class="kk">O / L</span><span>field fade</span></div>
+      <div class="krow"><span class="kk">J / Y</span><span>tempo (slow / fast)</span></div>
+      <h3>DISPLAY</h3>
+      <div class="krow"><span class="kk">H</span><span>show / hide this help</span></div>
+      <div class="krow"><span class="kk">U</span><span>hide all UI (clean canvas for screenshots)</span></div>
+      <div class="krow"><span class="kk">TAB</span><span>hide / show controls</span></div>
+      <div class="krow"><span class="kk">ESC</span><span>close help</span></div>
+      <h3>SHARE</h3>
+      <div style="color:#777;margin-bottom:8px;line-height:1.5">
+        Press <span style="color:#00d2ff">C</span> or the SHARE button to copy a URL encoding all current settings. Anyone opening the link starts with the same configuration. Explore, then share what you find.
+      </div>
+      <h3>LINKS</h3>
+      <div style="margin:4px 0"><a href="https://quantumangle.blogosvet.cz/" target="_blank" style="color:#00d2ff;text-decoration:none">quantumangle.blogosvet.cz</a></div>
+      <div style="margin:4px 0"><a href="https://x.com/amthorn73" target="_blank" style="color:#00d2ff;text-decoration:none">A. M. Thorn (@amthorn73) / X</a></div>
+      <div style="margin:4px 0"><a href="https://orcid.org/0009-0008-5463-278X" target="_blank" style="color:#00d2ff;text-decoration:none">ORCID: 0009-0008-5463-278X</a></div>
+      <div style="margin-top:16px;text-align:center;color:#555;font-size:10px;letter-spacing:2px;line-height:1.8">
+        ALWAYS THE SAME. FOREVER NEW.<br>
+        <span style="color:#00d2ff;letter-spacing:3px">SIMPLIZIS.</span>
+      </div>
     </div>
 
-    <div class="help-hint">[H] klávesy  [U] skrýt vše  [TAB] menu</div>
-    <div class="credit">&copy; A. M. Thorn, 2026 AD</div>
+    <a class="credit" href="https://orcid.org/0009-0008-5463-278X" target="_blank">A. M. Thorn</a>
   </div>
 
 <script>
 (() => {
   const canvas = document.getElementById('c');
   const gl = canvas.getContext('webgl2', { antialias:false, alpha:false });
-  if(!gl){ alert("WebGL2 je nutný."); return; }
+  if(!gl){ alert("WebGL2 required."); return; }
 
   const ext = gl.getExtension('EXT_color_buffer_float');
-  if(!ext){ alert("Chybí EXT_color_buffer_float (float render target)."); return; }
+  if(!ext){ alert("Missing EXT_color_buffer_float."); return; }
   gl.getExtension('EXT_float_blend');
 
   // =========================
@@ -402,12 +420,12 @@
     slidersVisible = !slidersVisible;
     slidersWrap.style.display = slidersVisible ? '' : 'none';
     panelHideBtn.innerHTML = slidersVisible
-      ? 'SKRÝT <small>(TAB)</small>'
-      : 'UKÁZAT <small>(TAB)</small>';
+      ? 'HIDE <small>(TAB)</small>'
+      : 'SHOW <small>(TAB)</small>';
   }
   panelHideBtn.addEventListener('click', togglePanel);
   if(!slidersVisible) slidersWrap.style.display = 'none';
-  if(!slidersVisible) panelHideBtn.innerHTML = 'UKÁZAT <small>(TAB)</small>';
+  if(!slidersVisible) panelHideBtn.innerHTML = 'SHOW <small>(TAB)</small>';
 
   // =========================
   // URL hash: encode/decode
@@ -498,7 +516,7 @@
     function showOK(){
       const btn = document.getElementById('share');
       const orig = btn.innerHTML;
-      btn.innerHTML = 'ZKOPÍROVÁNO ✓';
+      btn.innerHTML = 'COPIED &#10003;';
       setTimeout(() => { btn.innerHTML = orig; }, 1500);
     }
 
@@ -1746,7 +1764,7 @@
   document.getElementById('defaults').addEventListener('click', restoreDefaults);
   document.getElementById('pause').addEventListener('click', ()=>{
     paused = !paused;
-    document.getElementById('pause').innerHTML = paused ? "POKRAČOVAT <small>(SPC)</small>" : "PAUZA <small>(SPC)</small>";
+    document.getElementById('pause').innerHTML = paused ? "RESUME <small>(SPC)</small>" : "PAUSE <small>(SPC)</small>";
   });
 
   ui.spin.addEventListener('dblclick', () => { ui.spin.value = '0.000'; });
@@ -1799,7 +1817,7 @@
       case ' ':
         e.preventDefault();
         paused = !paused;
-        document.getElementById('pause').innerHTML = paused ? 'POKRAČOVAT <small>(SPC)</small>' : 'PAUZA <small>(SPC)</small>';
+        document.getElementById('pause').innerHTML = paused ? 'RESUME <small>(SPC)</small>' : 'PAUSE <small>(SPC)</small>';
         break;
       case 'r': case 'R':
         reset();
