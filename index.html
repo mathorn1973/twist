@@ -130,6 +130,8 @@
   .ui-hidden .credit{ display:none; }
   .ui-hidden .twistj-link{ display:none; }
   .ui-hidden #gameOverlay{ display:none !important; }
+  .ui-hidden #gameOverlay.game-ended{ display:flex !important; }
+  .ui-hidden.game-locked #gameOverlay.game-ended{ display:flex !important; }
   .ui-hidden .invert-btn{ display:none !important; }
   .ui-hidden .invert-hud{ display:none !important; }
 
@@ -150,6 +152,19 @@
   .game-locked #gameLockedHud .gl-fill{ color:#555; }
   .game-locked #gameLockedHud .gl-status{ color:#0a0; }
   .ui-hidden .wrap{ height:100vh; }
+
+  /* UI hidden overrides game-locked mode */
+  .ui-hidden.game-locked .top{ display:none !important; }
+  .ui-hidden.game-locked #gameLockedHud{ display:none !important; }
+  .ui-hidden.game-locked .invert-btn{ display:none !important; }
+  .ui-hidden.game-locked .credit{ display:none !important; }
+  .ui-hidden.game-locked .twistj-link{ display:none !important; }
+  .ui-hidden.game-locked .wrap{ height:100vh; }
+
+  .row.stack{ flex-direction:column; align-items:stretch; }
+  .row.stack label{ width:auto; }
+  .row.stack input[type=range]{ width:100%; }
+
 </style>
 </head>
 <body>
@@ -314,7 +329,7 @@
         <label>MODE</label>
         <div class="tog">
           <label><input type="radio" name="gameMode" id="gameModeEmpty" checked>EMPTY</label>
-          <label><input type="radio" name="gameMode" id="gameModeNotEmpty">NOT EMPTY</label>
+          <label><input type="radio" name="gameMode" id="gameModeNotEmpty">FULL</label>
         </div>
       </div>
       <div class="row" id="rowGameX">
@@ -341,6 +356,70 @@
         <label>GRACE <small>(s)</small></label>
         <input id="gameGrace" type="range" min="0.1" max="5.0" step="0.1" value="0.7" />
       </div>
+      
+      
+      
+      <div class="row" id="rowGameWinArea">
+        <label>WIN: AREA</label>
+        <div class="tog">
+          <label><input type="checkbox" id="gameWinArea" checked>ON</label>
+          <span style="color:#555;font-size:10px">EMPTY: keep enemy area &lt; COVERAGE · FULL: keep friendly area &gt; COVERAGE</span>
+        </div>
+      </div>
+      <div class="row" id="rowGameWinPresence">
+        <label>WIN: PRESENCE</label>
+        <div class="tog">
+          <label><input type="checkbox" id="gameWinPresence">ON</label>
+          <span style="color:#555;font-size:10px">EMPTY: no enemy pixels · FULL: at least one friendly pixel</span>
+        </div>
+      </div>
+      <div class="row" id="rowGameDuality">
+        <label>DUALITY <small>(opt)</small></label>
+        <div class="tog">
+          <label><input type="checkbox" id="gameDualOn">FRIENDLY / ENEMY <small>(MOUSE=FRIENDLY)</small></label>
+        </div>
+      </div>
+      <div class="row stack" id="rowGameColors">
+        <label>COLORS <small id="colorLabel">BLUE / PINK</small></label>
+        <input id="gameColors" type="range" min="0" max="4" step="1" value="0" />
+      </div>
+      <div class="row stack" id="rowGameDualRate">
+        <label>EAT RATE</label>
+        <input id="gameDualRate" type="range" min="0.00" max="10.00" step="0.1" value="2.00" />
+      </div>
+      <div class="row" id="rowGamePowerEats">
+        <label><input id="gamePowerEats" type="checkbox" /> POWER EATS</label>
+        <span style="color:#555;font-size:10px">REINF multipliers also boost eating strength per side</span>
+      </div>
+      <div class="row" id="rowGameEnergyTransfer">
+        <label><input id="gameEnergyTransfer" type="checkbox" checked /> ENERGY TRANSFER</label>
+        <span style="color:#555;font-size:10px">Eating converts enemy into your own (snowball)</span>
+      </div>
+      <div class="row" id="rowGameDualEq">
+        <label>BALANCE <small>(reinforcements)</small></label>
+        <input id="gameDualEq" type="range" min="0.00" max="1.00" step="0.01" value="0.00" />
+      </div>
+
+      <div class="row stack" id="rowGameReinfFlow">
+        <label>REINF FLOW</label>
+        <input id="gameReinfFlow" type="range" min="0.00" max="5.00" step="0.01" value="0.00" />
+      </div>
+      <div class="row" id="rowGameReinfWaves">
+        <label><input id="gameReinfWaves" type="checkbox" /> WAVES <small>(ENEMY only)</small></label>
+      </div>
+
+      <div class="row stack" id="rowGameReinfBlue">
+        <label>REINF FRIENDLY</label>
+        <input id="gameReinfBlue" type="range" min="0.00" max="3.00" step="0.01" value="1.00" />
+      </div>
+      <div class="row stack" id="rowGameReinfPink">
+        <label>REINF ENEMY</label>
+        <input id="gameReinfPink" type="range" min="0.00" max="3.00" step="0.01" value="1.00" />
+      </div>
+      <div class="row stack" id="rowGameDualCoh">
+        <label>CLUSTER</label>
+        <input id="gameDualCoh" type="range" min="0.00" max="200.00" step="0.05" value="1.20" />
+      </div>
       <div class="btn-bar">
         <button id="gameStart">NEW RUN</button>
         <button id="gameStop" disabled>STOP</button>
@@ -348,9 +427,19 @@
         <button id="gameLock">LOCK &amp; SHARE</button>
       </div>
       <div id="gameHud" style="text-align:center;padding:6px;font-size:11px;color:#666">
-        <span id="gameStatus">SETUP</span> &nbsp;
-        <span style="color:#00d2ff" id="gameTimer">0.0s</span> &nbsp;
-        <span id="gameFill" style="color:#666">0%</span>
+        <div>
+          <span id="gameStatus">SETUP</span> &nbsp;
+          <span style="color:#00d2ff" id="gameTimer">0.0s</span> &nbsp;
+          <span id="gameFill" style="color:#666">0%</span>
+        </div>
+        <div style="margin-top:4px;color:#555;font-size:10px;letter-spacing:1px">
+          <span id="gameAreaStat">AREA: -</span> &nbsp; | &nbsp;
+          <span id="gamePresenceStat">PRES: -</span>
+        </div>
+        <div style="margin-top:4px;color:#555;font-size:10px;letter-spacing:1px">
+          <span id="gameReinfStat">REINF: off</span>
+        </div>
+      </div>
       </div>
       </div>
     </div>
@@ -424,7 +513,7 @@
       </div>
     </div>
 
-    <div id="gameOverlay" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:auto;z-index:5">
+    <div id="gameOverlay" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;text-align:center;pointer-events:auto;z-index:50;background:rgba(0,0,0,0.55)">
       <div style="background:rgba(6,6,10,0.92);border:1px solid #1e1e28;border-radius:8px;padding:28px 40px;min-width:220px">
         <!-- Start screen -->
         <div id="gameStartScreen" style="display:none">
@@ -435,6 +524,7 @@
         <div id="gameEndScreen" style="display:none">
           <div style="color:#f44;font-size:14px;letter-spacing:3px;margin-bottom:8px" id="gameOverTitle">GAME OVER</div>
           <div style="color:#8a8a8a;font-size:22px;letter-spacing:2px;margin-bottom:16px" id="gameOverTime">12.3s</div>
+          <div id="gameOverStats" style="color:#666;font-size:10px;line-height:1.6;letter-spacing:1px;margin:-6px 0 16px 0;white-space:pre-line"></div>
           <button id="gameRetry" style="font-size:13px;padding:10px 24px;letter-spacing:2px;margin-bottom:14px">TRY AGAIN</button>
           <div style="display:flex;gap:12px;justify-content:center">
             <a href="https://twistj.com" target="_blank" style="color:#444;font-size:9px;letter-spacing:2px;text-decoration:none;padding:4px 10px;border:1px solid #1e1e28;border-radius:4px">TWIST-J</a>
@@ -521,6 +611,9 @@
     });
   }
 
+  // Global (safe before GAME wiring): true when duality mode repurposes g/b field channels.
+  let dualityOverride = false;
+
   function syncUI(){
     const kernelOn = ui.tglKernel.checked;
     const fieldOn  = ui.tglField.checked;
@@ -543,13 +636,13 @@
     setRowEnabled(ui.rowPressure, fieldOn);
     setRowEnabled(ui.rowTimeK, fieldOn);
     setRowEnabled(ui.rowTimeMin, fieldOn);
-    setRowEnabled(ui.rowCharge, fieldOn);
+    setRowEnabled(ui.rowCharge, fieldOn && !dualityOverride);
     setRowEnabled(ui.rowPump, pumpOn);
 
-    // REACTIONS depend on FIELD
-    ui.tglReact.disabled = !fieldOn;
+    // REACTIONS depend on FIELD (and are disabled by DUALITY)
+    ui.tglReact.disabled = !fieldOn || dualityOverride;
 
-    const reactOn = ui.tglReact.checked && fieldOn;
+    const reactOn = ui.tglReact.checked && fieldOn && !dualityOverride;
     setRowEnabled(ui.rowReact, reactOn);
   }
 
@@ -566,9 +659,23 @@
   const panelHideBtn = document.getElementById('panelHide');
 
   let slidersVisible = window.innerWidth >= 500;
+  let gameWrapRef = null; // set later after gameWrap is declared
+  let gameWasOpen = false;
   function togglePanel(){
     slidersVisible = !slidersVisible;
-    slidersWrap.style.display = slidersVisible ? '' : 'none';
+    if(!slidersVisible){
+      // hiding: remember if game panel was open
+      gameWasOpen = (gameWrapRef && gameWrapRef.style.display !== 'none');
+      slidersWrap.style.display = 'none';
+      if(gameWrapRef && gameWasOpen) gameWrapRef.style.display = 'none';
+    } else {
+      // showing: restore whichever was open
+      if(gameWasOpen && gameWrapRef){
+        gameWrapRef.style.display = '';
+      } else {
+        slidersWrap.style.display = '';
+      }
+    }
     panelHideBtn.innerHTML = slidersVisible
       ? 'HIDE <small>(TAB)</small>'
       : 'SHOW <small>(TAB)</small>';
@@ -594,6 +701,23 @@
     thresh:       document.getElementById('gameThresh'),
     coverage:     document.getElementById('gameCoverage'),
     grace:        document.getElementById('gameGrace'),
+    winArea:      document.getElementById('gameWinArea'),
+    winPresence:  document.getElementById('gameWinPresence'),
+    dualOn:       document.getElementById('gameDualOn'),
+    dualRate:     document.getElementById('gameDualRate'),
+    dualEq:       document.getElementById('gameDualEq'),
+    dualCoh:      document.getElementById('gameDualCoh'),
+    powerEats:    document.getElementById('gamePowerEats'),
+    energyTransfer: document.getElementById('gameEnergyTransfer'),
+    colors:       document.getElementById('gameColors'),
+    colorLabel:   document.getElementById('colorLabel'),
+    reinfBlue:    document.getElementById('gameReinfBlue'),
+    reinfPink:    document.getElementById('gameReinfPink'),
+    reinfFlow:    document.getElementById('gameReinfFlow'),
+    reinfWaves:   document.getElementById('gameReinfWaves'),
+    areaStat:     document.getElementById('gameAreaStat'),
+    presenceStat: document.getElementById('gamePresenceStat'),
+    reinfStat:    document.getElementById('gameReinfStat'),
     start:        document.getElementById('gameStart'),
     stop:         document.getElementById('gameStop'),
     back:         document.getElementById('gameBack'),
@@ -621,14 +745,45 @@
     threshold: 0.030,
     coverageMax: 0.020,
     grace: 0.7,
+    winArea: false,
+    winPresence: true,
+    winHold: 0,
+    blueHold: 0,
     tDanger: 0,
     time: 0,
     lastT: 0,
     over: false,
     locked: false,
+    // Duality (BLUE/PINK predation)
+    dualOn: false,
+    dualRate: 2.00,
+    dualEq: 0.00,
+    dualCoh: 1.20,
+    reinfBlue: 1.00,
+    reinfPink: 1.00,
+    reinfFlow: 0.00,
+    reinfWaves: false,
+    powerEats: false,
+    energyTransfer: true,
+    dualColors: 0,
   };
 
+  const DUAL_COLOR_NAMES = [
+    'BLUE / PINK',
+    'AMBER / GREEN (CRT)',
+    'WHITE / DARK BLUE',
+    'MIL BLUE / MIL RED',
+    'WHITE / DARK GREY',
+  ];
+
+  function updateColorLabel(){
+    const idx = gameUI.colors ? parseInt(gameUI.colors.value) : 0;
+    if(gameUI.colorLabel) gameUI.colorLabel.textContent = DUAL_COLOR_NAMES[idx] || DUAL_COLOR_NAMES[0];
+  }
+  if(gameUI.colors) gameUI.colors.addEventListener('input', updateColorLabel);
+
   const gameWrap = document.getElementById('gameWrap');
+  gameWrapRef = gameWrap; // enable togglePanel to also hide game panel
   const glStatus = document.getElementById('glStatus');
   const glTime = document.getElementById('glTime');
   const glFill = document.getElementById('glFill');
@@ -643,6 +798,27 @@
     game.threshold = parseFloat(gameUI.thresh.value);
     game.coverageMax = parseFloat(gameUI.coverage.value);
     game.grace = parseFloat(gameUI.grace.value);
+    game.winArea = gameUI.winArea ? gameUI.winArea.checked : true;
+    game.winPresence = gameUI.winPresence ? gameUI.winPresence.checked : false;
+    // ensure at least one condition is active
+    if(!game.winArea && !game.winPresence){
+      game.winArea = true;
+      if(gameUI.winArea) gameUI.winArea.checked = true;
+    }
+    game.dualOn = !!(gameUI.dualOn && gameUI.dualOn.checked);
+    game.dualRate = gameUI.dualRate ? parseFloat(gameUI.dualRate.value) : 1.0;
+    game.dualEq = gameUI.dualEq ? parseFloat(gameUI.dualEq.value) : 0.00;
+    game.dualCoh = gameUI.dualCoh ? parseFloat(gameUI.dualCoh.value) : 0.0;
+    game.reinfBlue = gameUI.reinfBlue ? parseFloat(gameUI.reinfBlue.value) : 1.0;
+    game.reinfPink = gameUI.reinfPink ? parseFloat(gameUI.reinfPink.value) : 1.0;
+    game.reinfFlow = gameUI.reinfFlow ? parseFloat(gameUI.reinfFlow.value) : 0.0;
+    game.reinfWaves = !!(gameUI.reinfWaves && gameUI.reinfWaves.checked);
+    game.powerEats = !!(gameUI.powerEats && gameUI.powerEats.checked);
+    game.energyTransfer = !!(gameUI.energyTransfer && gameUI.energyTransfer.checked);
+    game.dualColors = gameUI.colors ? parseInt(gameUI.colors.value) : 0;
+
+    // tell the main UI to disable CHARGE/REACT (they use g/b channels) when duality is active
+    dualityOverride = game.dualOn;
   }
 
   const SLIDER_MAP = [
@@ -682,6 +858,21 @@
       parts.push('gt' + gameUI.thresh.value);
       parts.push('gC' + gameUI.coverage.value);
       parts.push('gg' + gameUI.grace.value);
+      parts.push('gWA' + (gameUI.winArea.checked ? '1':'0'));
+      parts.push('gWP' + (gameUI.winPresence.checked ? '1':'0'));
+      parts.push('gRb' + gameUI.reinfBlue.value);
+      parts.push('gRp' + gameUI.reinfPink.value);
+      if(gameUI.powerEats && gameUI.powerEats.checked) parts.push('gPE1');
+      if(gameUI.energyTransfer && !gameUI.energyTransfer.checked) parts.push('gET0');
+      parts.push('gW' + ((gameUI.winArea && gameUI.winArea.checked) ? '1' : '0') + ((gameUI.winPresence && gameUI.winPresence.checked) ? '1' : '0'));
+    }
+    // duality params (independent of GAME enable)
+    if(gameUI.dualOn && gameUI.dualOn.checked){
+      parts.push('gd1');
+      parts.push('gD' + gameUI.dualRate.value);
+      if(gameUI.dualEq) parts.push('gE' + gameUI.dualEq.value);
+      if(gameUI.dualCoh) parts.push('gA' + gameUI.dualCoh.value);
+      if(gameUI.colors && parseInt(gameUI.colors.value) > 0) parts.push('gCo' + gameUI.colors.value);
     }
     // preserve VRAM budget if non-default
     if(VRAM_BUDGET > (isDesktop ? 800 : 300)){
@@ -739,15 +930,25 @@
       if(p === 'gL1'){ gameLockRequested = true; continue; }
       if(p.startsWith('gs')){ gameUI.showZone.checked = p[2] === '1'; continue; }
       if(p.startsWith('gm')){ if(p[2]==='1') gameUI.modeNotEmpty.checked=true; else gameUI.modeEmpty.checked=true; continue; }
-      const gMap = {gx:'x', gy:'y', gh:'size', gt:'thresh', gC:'coverage', gg:'grace'};
+      if(p.startsWith('gWA')){ if(gameUI.winArea) gameUI.winArea.checked = (p[3]==='1'); continue; }
+      if(p.startsWith('gWP')){ if(gameUI.winPresence) gameUI.winPresence.checked = (p[3]==='1'); continue; }
+      if(p.startsWith('gRb')){ if(gameUI.reinfBlue){ const v=parseFloat(p.substring(3)); if(!isNaN(v)) gameUI.reinfBlue.value=v; } continue; }
+      if(p.startsWith('gRp')){ if(gameUI.reinfPink){ const v=parseFloat(p.substring(3)); if(!isNaN(v)) gameUI.reinfPink.value=v; } continue; }
+      if(p.startsWith('gCo')){ if(gameUI.colors){ const v=parseInt(p.substring(3)); if(!isNaN(v)) gameUI.colors.value=v; updateColorLabel(); } continue; }
+      if(p === 'gPE1'){ if(gameUI.powerEats) gameUI.powerEats.checked = true; continue; }
+      if(p === 'gET0'){ if(gameUI.energyTransfer) gameUI.energyTransfer.checked = false; continue; }
+
+      if(p.startsWith('gW')){ if(gameUI.winArea) gameUI.winArea.checked = p[2] === '1'; if(gameUI.winPresence) gameUI.winPresence.checked = (p.length > 3 ? p[3] === '1' : false); continue; }
+      if(p.startsWith('gd')){ if(gameUI.dualOn) gameUI.dualOn.checked = p[2] === '1'; continue; }
+      const gMap = {gx:'x', gy:'y', gh:'size', gt:'thresh', gC:'coverage', gg:'grace', gD:'dualRate', gE:'dualEq', gA:'dualCoh'};
       const gk2 = p.substring(0,2);
       if(gMap[gk2] && gameUI[gMap[gk2]]){
         const v = parseFloat(p.substring(2));
         if(!isNaN(v)) gameUI[gMap[gk2]].value = v;
       }
     }
-    syncUI();
     gameReadUI();
+    syncUI();
   }
 
   function shareURL(){
@@ -948,9 +1149,14 @@
     int q   = int(k1 % 5u);
     int ts  = int((k1/5u) % 5u);
 
+    // Duality per-particle state (always initialized; used only when DUALITY is enabled)
+    float sp = float(k1 & 1u); // 0=BLUE, 1=PINK
+    uint k2 = hash(k1 + 17u);
+    float pw = 0.6 + float(k2 & 0xFFFFu) / 65535.0 * 0.4;
+
     o_state = vec4(pos, vel);
     o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
-    o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+    o_k1 = vec4(float(q), float(ts), sp, pw);
   }`;
 
   const FS_FADE = `#version 300 es
@@ -1067,6 +1273,8 @@
   uniform uint  u_frame;
   uniform float u_deposit;
   uniform int   u_kernelOn;
+  uniform int   u_dualOn;
+  uniform float u_dualEq;
 
   out float v_mass;
   out float v_qp;
@@ -1104,28 +1312,57 @@
     float qp = 0.0;
     float qm = 0.0;
 
-    if(u_kernelOn == 1){
-      vec4 k0 = texelFetch(u_k0, ivec2(xx,yy), 0);
-      vec4 k1 = texelFetch(u_k1, ivec2(xx,yy), 0);
-      int p1  = int(k0.x + 0.5);
-      int p4  = int(k0.y + 0.5);
-      int p1p = int(k0.z + 0.5);
-      int p4p = int(k0.w + 0.5);
-      int q   = int(k1.x + 0.5);
-      int ts  = int(k1.y + 0.5);
-      int z = z_trace6(p1,p4,p1p,p4p,q,ts);
-      int idx = idx_map(z, u_tm);
+    // Duality: when enabled, use (g,b) as species density (BLUE/PINK) instead of +/- charge.
+    if(u_dualOn == 1){
+      vec4 kk1 = texelFetch(u_k1, ivec2(xx,yy), 0);
+      float sp = kk1.z;                 // 0=BLUE, 1=PINK
+      float pw = clamp(kk1.w, 0.0, 1.0); // strength
+      float dep = u_deposit * pw;
 
-      if(u_tm == 0 && z == 4) mass = u_deposit;
-      if(idx == 3) qp = u_deposit;
-      if(idx == 4) qm = u_deposit;
+      // keep mass deposition (gyron -> mass) for game-zone mechanics
+      if(u_kernelOn == 1){
+        vec4 k0 = texelFetch(u_k0, ivec2(xx,yy), 0);
+        int p1  = int(k0.x + 0.5);
+        int p4  = int(k0.y + 0.5);
+        int p1p = int(k0.z + 0.5);
+        int p4p = int(k0.w + 0.5);
+        int q   = int(kk1.x + 0.5);
+        int ts  = int(kk1.y + 0.5);
+        int z = z_trace6(p1,p4,p1p,p4p,q,ts);
+        if(u_tm == 0 && z == 4) mass = u_deposit;
+      } else {
+        uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
+        uint h = hash(uid + u_frame * 1923u);
+        uint k = h % 5u;
+        if(u_tm == 0 && k == 4u) mass = u_deposit;
+      }
+
+      if(sp < 0.5) qp = dep; else qm = dep;
     } else {
-      uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
-      uint h = hash(uid + u_frame * 1923u);
-      uint k = h % 5u;
-      if(u_tm == 0 && k == 4u) mass = u_deposit;
-      if(k == 3u) qp = u_deposit;
-      if(k == 4u) qm = u_deposit;
+      // Original: charge deposition from kernel/random idx
+      if(u_kernelOn == 1){
+        vec4 k0 = texelFetch(u_k0, ivec2(xx,yy), 0);
+        vec4 kk1 = texelFetch(u_k1, ivec2(xx,yy), 0);
+        int p1  = int(k0.x + 0.5);
+        int p4  = int(k0.y + 0.5);
+        int p1p = int(k0.z + 0.5);
+        int p4p = int(k0.w + 0.5);
+        int q   = int(kk1.x + 0.5);
+        int ts  = int(kk1.y + 0.5);
+        int z = z_trace6(p1,p4,p1p,p4p,q,ts);
+        int idx = idx_map(z, u_tm);
+
+        if(u_tm == 0 && z == 4) mass = u_deposit;
+        if(idx == 3) qp = u_deposit;
+        if(idx == 4) qm = u_deposit;
+      } else {
+        uint uid = uint(yy) * uint(${TEX_SIZE}) + uint(xx);
+        uint h = hash(uid + u_frame * 1923u);
+        uint k = h % 5u;
+        if(u_tm == 0 && k == 4u) mass = u_deposit;
+        if(k == 3u) qp = u_deposit;
+        if(k == 4u) qm = u_deposit;
+      }
     }
 
     v_mass = mass;
@@ -1144,6 +1381,86 @@
   out vec4 o_col;
   void main(){ o_col = vec4(v_mass, v_qp, v_qm, 0.0); }`;
 
+  // =========================
+  // GAME: 1x1 zone particle counter (robust presence)
+  // =========================
+  const VS_ZONE_COUNT = `#version 300 es
+  precision highp float;
+  precision highp int;
+
+  uniform sampler2D u_state;
+  uniform sampler2D u_k1;
+
+  uniform float u_cx;
+  uniform float u_cy;
+  uniform float u_half;
+
+  out float v_species;
+  out float v_inZone;
+
+  void main(){
+    int id = gl_VertexID;
+    int yy = id / ${TEX_SIZE};
+    int xx = id - yy * ${TEX_SIZE};
+
+    vec2 pos = texelFetch(u_state, ivec2(xx,yy), 0).xy;
+    vec4 k1  = texelFetch(u_k1, ivec2(xx,yy), 0);
+
+    // species encoded in k1.z : BLUE=0, PINK=1
+    v_species = k1.z;
+
+    bool inZ = (abs(pos.x - u_cx) <= u_half) && (abs(pos.y - u_cy) <= u_half);
+    v_inZone = inZ ? 1.0 : 0.0;
+
+    // Collapse all in-zone particles to the single pixel at center.
+    // Off-zone particles are sent outside clip.
+    if(inZ){
+      gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+      gl_PointSize = 1.0;
+    } else {
+      gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+      gl_PointSize = 0.0;
+    }
+  }`;
+
+  const VS_TOTAL_COUNT = `#version 300 es
+  precision highp float;
+  precision highp int;
+
+  uniform sampler2D u_k1;
+  out float v_species;
+
+  void main(){
+    int id = gl_VertexID;
+    int yy = id / ${TEX_SIZE};
+    int xx = id - yy * ${TEX_SIZE};
+    vec4 k1  = texelFetch(u_k1, ivec2(xx,yy), 0);
+    v_species = k1.z;
+    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_PointSize = 1.0;
+  }`;
+
+  const FS_TOTAL_COUNT = `#version 300 es
+  precision highp float;
+  in float v_species;
+  out vec4 o_col;
+  void main(){
+    if(v_species < 0.5) o_col = vec4(1.0, 0.0, 0.0, 0.0);
+    else                o_col = vec4(0.0, 1.0, 0.0, 0.0);
+  }`;
+
+  FS_ZONE_COUNT = `#version 300 es
+  precision highp float;
+  in float v_species;
+  in float v_inZone;
+  out vec4 o_col;
+  void main(){
+    if(v_inZone < 0.5) discard;
+    // Additive count: R=BLUE hits, G=PINK hits
+    if(v_species < 0.5) o_col = vec4(1.0, 0.0, 0.0, 0.0);
+    else                o_col = vec4(0.0, 1.0, 0.0, 0.0);
+  }`;
+
   const FS_FIELD_REACT = `#version 300 es
   precision highp float;
   in vec2 v_uv;
@@ -1152,6 +1469,17 @@
   uniform float u_charge;
   uniform float u_pressure;
   uniform float u_react;
+  uniform int u_reactOn;
+
+  // Duality: BLUE/PINK predation implemented on species channels (g,b)
+  uniform int u_dualOn;
+  uniform float u_dualRate;
+  uniform float u_dualEq;
+  uniform float u_dualCoh;
+  uniform float u_eatMulBlue;
+  uniform float u_eatMulPink;
+  uniform int u_energyTransfer;
+
   out vec4 o_col;
 
   float sat(float x){ return clamp(x, 0.0, 1.0); }
@@ -1161,48 +1489,106 @@
     float r = f.r;
     float g = f.g;
     float b = f.b;
-    float h = f.a;
+    float h = f.a;// (0) duality: stronger eats weaker (transfer on channels g/b)
+// NOTE: BALANCE no longer changes core mechanics; it is handled on CPU as reinforcements.
+if(u_dualOn == 1 && u_dualRate > 0.0){
+  // Exponential rate mapping: slider 0-10, effective rate grows exponentially
+  float rate = u_dualRate;
+  float aggr = rate * rate * 0.1; // 0..10 quadratic for strong high-end
 
-    // (1) charge annihilation: + and - cancel -> heat (h)
-    float ann = min(g, b) * u_react;
-    g -= ann;
-    b -= ann;
+  // Boundary diffusion: more mixing at higher rates so species overlap and can eat
+  vec4 fL = texture(u_prev, v_uv - vec2(u_texel.x, 0.0));
+  vec4 fR = texture(u_prev, v_uv + vec2(u_texel.x, 0.0));
+  vec4 fD = texture(u_prev, v_uv - vec2(0.0, u_texel.y));
+  vec4 fU = texture(u_prev, v_uv + vec2(0.0, u_texel.y));
+  float gN = (g + fL.g + fR.g + fD.g + fU.g) * 0.2;
+  float bN = (b + fL.b + fR.b + fD.b + fU.b) * 0.2;
 
-    // cooling even when FIELD FADE = 1
-    h *= 0.992;
+  float cohN = sat(u_dualCoh / 30.0);
+  // Mixing grows with both CLUSTER and EAT RATE
+  float mixK = 0.06 + 0.18 * cohN + 0.20 * sat(rate / 6.0);
+  g = mix(g, gN, mixK);
+  b = mix(b, bN, mixK);
 
-    // heat from reaction (scales with CHARGE and REACT)
-    float heatGain = (0.22 + 0.02 * u_charge) * u_react;
-    h = sat(h + ann * heatGain);
+  float diff = abs(g - b);
+  float sum = g + b + 0.0005;
 
-    // ash: small fraction of reaction goes to mass
-    r = sat(r + ann * 0.08 * u_react);
+  // advantage in [0..1]
+  float adv = sat(diff / sum);
+  adv = pow(adv, 0.50);
 
-    // (2) fission: heat + density gradient creates local polarization
-    float rL = texture(u_prev, v_uv - vec2(u_texel.x, 0.0)).r;
-    float rR = texture(u_prev, v_uv + vec2(u_texel.x, 0.0)).r;
-    float rD = texture(u_prev, v_uv - vec2(0.0, u_texel.y)).r;
-    float rU = texture(u_prev, v_uv + vec2(0.0, u_texel.y)).r;
-    float gx = rR - rL;
-    float gy = rU - rD;
-    float gmag = abs(gx) + abs(gy);
+  // conversion: proportional eating (transfers minority to majority)
+  float eatFrac = 1.0 - exp(-aggr * adv * 1.5);
+  float eat = min(g, b) * eatFrac;
 
-    float stress = h * gmag;
-    float thr = (0.010 + 0.002 * u_pressure) / max(u_react, 0.01);
-    float over = max(0.0, stress - thr);
+  // At high rates, add direct erosion: the minority is consumed even when min(g,b) is tiny
+  // This breaks the stalemate at sharp boundaries
+  float erosion = 0.0;
+  if(rate > 2.0){
+    float erosK = sat((rate - 2.0) / 8.0); // 0 at rate=2, 1 at rate=10
+    erosion = adv * erosK * 0.04 * sum;
+  }
 
-    // sign from main gradient axis (flips on opposite side -> dipole)
-    float sgn = (abs(gx) > abs(gy)) ? sign(gx) : sign(gy);
+  if(g > b){
+    float mul = u_eatMulBlue;
+    float taken = (eat + erosion) * mul;
+    // ENERGY TRANSFER: winner gains MORE than loser loses (amplified conversion)
+    float gainMul = (u_energyTransfer == 1) ? 1.5 : 1.0;
+    g = sat(g + taken * gainMul);
+    b = sat(b - taken);
+  } else if(b > g){
+    float mul = u_eatMulPink;
+    float taken = (eat + erosion) * mul;
+    float gainMul = (u_energyTransfer == 1) ? 1.5 : 1.0;
+    b = sat(b + taken * gainMul);
+    g = sat(g - taken);
+  }
+}
 
-    float makeQ = over * (0.35 + 0.03 * u_charge) * u_react;
-    makeQ = min(makeQ, 0.25 * r);
 
-    float rhoQ = makeQ * sgn;
-    if(rhoQ > 0.0) g = sat(g + rhoQ);
-    else           b = sat(b - rhoQ);
+if(u_reactOn == 1 && u_dualOn == 0){
 
-    // consume mass so it is not numerically infinite
-    r = sat(r - abs(rhoQ) * 0.45);
+      // (1) charge annihilation: + and - cancel -> heat (h)
+      float ann = min(g, b) * u_react;
+      g -= ann;
+      b -= ann;
+
+      // cooling even when FIELD FADE = 1
+      h *= 0.992;
+
+      // heat from reaction (scales with CHARGE and REACT)
+      float heatGain = (0.22 + 0.02 * u_charge) * u_react;
+      h = sat(h + ann * heatGain);
+
+      // ash: small fraction of reaction goes to mass
+      r = sat(r + ann * 0.08 * u_react);
+
+      // (2) fission: heat + density gradient creates local polarization
+      float rL = texture(u_prev, v_uv - vec2(u_texel.x, 0.0)).r;
+      float rR = texture(u_prev, v_uv + vec2(u_texel.x, 0.0)).r;
+      float rD = texture(u_prev, v_uv - vec2(0.0, u_texel.y)).r;
+      float rU = texture(u_prev, v_uv + vec2(0.0, u_texel.y)).r;
+      float gx = rR - rL;
+      float gy = rU - rD;
+      float gmag = abs(gx) + abs(gy);
+
+      float stress = h * gmag;
+      float thr = (0.010 + 0.002 * u_pressure) / max(u_react, 0.01);
+      float over = max(0.0, stress - thr);
+
+      // sign from main gradient axis (flips on opposite side -> dipole)
+      float sgn = (abs(gx) > abs(gy)) ? sign(gx) : sign(gy);
+
+      float makeQ = over * (0.35 + 0.03 * u_charge) * u_react;
+      makeQ = min(makeQ, 0.25 * r);
+
+      float rhoQ = makeQ * sgn;
+      if(rhoQ > 0.0) g = sat(g + rhoQ);
+      else           b = sat(b - rhoQ);
+
+      // consume mass so it is not numerically infinite
+      r = sat(r - abs(rhoQ) * 0.45);
+    }
 
     o_col = vec4(r, g, b, h);
   }`;
@@ -1230,6 +1616,26 @@
   uniform int   u_chaosOn;
   uniform int   u_pumpOn;
   uniform int   u_exactIFS;
+
+  // Duality (two particle species: BLUE/PINK)
+  uniform int   u_dualOn;
+  uniform float u_dualRate;
+  uniform float u_dualEq;
+  uniform float u_dualCoh;
+  uniform float u_eatMulBlue;
+  uniform float u_eatMulPink;
+  uniform int u_energyTransfer;
+
+  // Reinforcements (driven by BALANCE slider on CPU)
+  uniform int   u_reinfOn;
+  uniform float u_reinfProb;
+  uniform int   u_reinfSide;
+  uniform uint  u_reinfSeed;
+  uniform vec2  u_reinfDir;
+  uniform float u_reinfSpeed;
+  uniform float u_reinfSpread;
+  uniform float u_reinfMulBlue;
+  uniform float u_reinfMulPink;
 
   uniform float u_grav;
   uniform float u_pump;
@@ -1306,6 +1712,43 @@
     vec4 ok0 = k0;
     vec4 ok1 = k1;
 
+    // Duality per-particle state (stored in k1.zw)
+    float sp = k1.z; // 0=BLUE, 1=PINK
+    float pw = clamp(k1.w, 0.0, 1.0);
+
+    // Reinforcements: occasionally respawn a small subset of particles of one species
+    // from a random boundary direction. Controlled on CPU via BALANCE slider.
+    if(u_reinfOn == 1 && u_reinfProb > 0.0){
+      uint uid2 = uint(coord.y) * uint(${TEX_SIZE}) + uint(coord.x);
+      uint hh = hash(uid2 ^ u_reinfSeed);
+      float r0 = float(hh & 0xFFFFu) / 65535.0;
+      if(r0 < u_reinfProb){
+        vec2 dir = normalize(u_reinfDir);
+        vec2 perp = vec2(-dir.y, dir.x);
+
+        uint h1 = hash(hh + 1u);
+        uint h2 = hash(hh + 2u);
+        uint h3 = hash(hh + 3u);
+        uint h4 = hash(hh + 4u);
+
+        float off = (float(h1 & 0xFFFFu) / 65535.0) * 2.0 - 1.0;
+
+        // spawn on the boundary opposite to travel direction (entering the domain)
+        vec2 p0 = (-dir) * (u_bounds * 0.98) + perp * off * (u_bounds * 0.95);
+        p0 = clamp(p0, vec2(-u_bounds*0.98), vec2(u_bounds*0.98));
+
+        float spd = u_reinfSpeed * (0.65 + 0.70 * (float(h3 & 0xFFFFu) / 65535.0));
+        float spr = u_reinfSpread * ((float(h4 & 0xFFFFu) / 65535.0) * 2.0 - 1.0);
+
+        pos = p0;
+        vel = dir * spd + perp * spr;
+
+        sp = float(u_reinfSide);
+        float mul = (u_reinfSide==0) ? u_reinfMulBlue : u_reinfMulPink;
+        pw = (0.65 + 0.35 * (float(hash(hh + 7u) & 0xFFFFu) / 65535.0)) * mul;
+      }
+    }
+
     int idx = 0;
     int p1=0,p4=0,p1p=0,p4p=0,q=0,ts=0;
     int z0=0, q0=0;
@@ -1363,10 +1806,10 @@
       o_state = vec4(pos, vel);
       if(u_kernelOn == 1){
         o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
-        o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+        o_k1 = vec4(float(q), float(ts), sp, pw);
       } else {
         o_k0 = ok0;
-        o_k1 = ok1;
+        o_k1 = vec4(ok1.x, ok1.y, sp, pw);
       }
       return;
     }
@@ -1375,63 +1818,100 @@
 
     float N = 1.0;
 
-    if(u_fieldOn == 1){
+    // Field is sampled either for full FIELD dynamics, or just for duality (species) sensing.
+    bool needField = (u_fieldOn == 1) || (u_dualOn == 1);
+    vec4 fBlur = vec4(0.0);
+
+    if(needField){
       vec2 uv = pos / u_bounds * 0.5 + 0.5;
       uv = clamp(uv, vec2(0.001), vec2(0.999));
+      fBlur = texture(u_field, uv);
 
-      float rho = texture(u_field, uv).r;
+      if(u_fieldOn == 1){
+        float rho = fBlur.r;
 
-      N = 1.0 / (1.0 + u_timeK * rho);
-      N = clamp(N, u_timeMin, 1.0);
+        N = 1.0 / (1.0 + u_timeK * rho);
+        N = clamp(N, u_timeMin, 1.0);
 
-      if(u_grav > 0.0){
-        float fx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0)).r;
-        float fx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0)).r;
-        float fy1 = texture(u_field, uv + vec2(0.0, u_fieldTexel.y)).r;
-        float fy0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y)).r;
-        vec2 gradL = vec2(fx1 - fx0, fy1 - fy0);
-        // vir: rotuj gradient (0 = radial pad, 1 = cisty orbit)
-        vec2 curl = vec2(-gradL.y, gradL.x);
-        vec2 gForce = mix(gradL, curl, u_vortex);
-        acc += gForce * u_grav;
+        if(u_grav > 0.0){
+          float fx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0)).r;
+          float fx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0)).r;
+          float fy1 = texture(u_field, uv + vec2(0.0, u_fieldTexel.y)).r;
+          float fy0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y)).r;
+          vec2 gradL = vec2(fx1 - fx0, fy1 - fy0);
+          // vir: rotuj gradient (0 = radial pad, 1 = cisty orbit)
+          vec2 curl = vec2(-gradL.y, gradL.x);
+          vec2 gForce = mix(gradL, curl, u_vortex);
+          acc += gForce * u_grav;
+        }
+
+        vec4 raw_xp = texture(u_fieldRaw, uv + vec2(u_fieldTexel.x, 0.0));
+        vec4 raw_xm = texture(u_fieldRaw, uv - vec2(u_fieldTexel.x, 0.0));
+        vec4 raw_yp = texture(u_fieldRaw, uv + vec2(0.0, u_fieldTexel.y));
+        vec4 raw_ym = texture(u_fieldRaw, uv - vec2(0.0, u_fieldTexel.y));
+
+        if(u_pressure > 0.0){
+          vec2 gradS = vec2(raw_xp.r - raw_xm.r, raw_yp.r - raw_ym.r);
+          acc -= gradS * u_pressure;
+        }
+
+        // Charge is disabled during duality (g/b are reserved for species)
+        if(u_charge > 0.0 && u_dualOn == 0){
+          vec4 raw_here = texture(u_fieldRaw, uv);
+          float rhoQ = raw_here.g - raw_here.b;
+          float Q = sign(rhoQ);
+          float qxp = raw_xp.g - raw_xp.b;
+          float qxm = raw_xm.g - raw_xm.b;
+          float qyp = raw_yp.g - raw_yp.b;
+          float qym = raw_ym.g - raw_ym.b;
+          vec2 gradQ = vec2(qxp - qxm, qyp - qym);
+          acc += Q * gradQ * u_charge;
+        }
+
+        // heat (A channel): blast force from heat gradient
+        if(u_reactOn == 1){
+          float hxp = raw_xp.a;
+          float hxm = raw_xm.a;
+          float hyp = raw_yp.a;
+          float hym = raw_ym.a;
+          vec2 gradH = vec2(hxp - hxm, hyp - hym);
+          // push away from hot regions
+          float blast = (0.10 + 0.18 * u_pressure + 0.03 * u_charge) * u_react;
+          acc -= gradH * blast;
+        }
       }
 
-      vec4 raw_xp = texture(u_fieldRaw, uv + vec2(u_fieldTexel.x, 0.0));
-      vec4 raw_xm = texture(u_fieldRaw, uv - vec2(u_fieldTexel.x, 0.0));
-      vec4 raw_yp = texture(u_fieldRaw, uv + vec2(0.0, u_fieldTexel.y));
-      vec4 raw_ym = texture(u_fieldRaw, uv - vec2(0.0, u_fieldTexel.y));
+    // Duality: make the two colors actually aggregate into domains.
+    // Each particle follows the gradient of its own density (BLUE=g, PINK=b)
+    // and avoids the opposite density. A small pressure from total density prevents collapse.
+    if(u_dualOn == 1 && u_dualCoh > 0.0){
+      vec4 bx1 = texture(u_field, uv + vec2(u_fieldTexel.x, 0.0));
+      vec4 bx0 = texture(u_field, uv - vec2(u_fieldTexel.x, 0.0));
+      vec4 by1 = texture(u_field, uv + vec2(0.0, u_fieldTexel.y));
+      vec4 by0 = texture(u_field, uv - vec2(0.0, u_fieldTexel.y));
 
-      if(u_pressure > 0.0){
-        vec2 gradS = vec2(raw_xp.r - raw_xm.r, raw_yp.r - raw_ym.r);
-        acc -= gradS * u_pressure;
-      }
+      vec2 gradBlue = vec2(bx1.g - bx0.g, by1.g - by0.g);
+      vec2 gradPink = vec2(bx1.b - bx0.b, by1.b - by0.b);
+      vec2 gradSum  = vec2((bx1.g + bx1.b) - (bx0.g + bx0.b),
+                           (by1.g + by1.b) - (by0.g + by0.b));
 
-      if(u_charge > 0.0){
-        vec4 raw_here = texture(u_fieldRaw, uv);
-        float rhoQ = raw_here.g - raw_here.b;
-        float Q = sign(rhoQ);
-        float qxp = raw_xp.g - raw_xp.b;
-        float qxm = raw_xm.g - raw_xm.b;
-        float qyp = raw_yp.g - raw_yp.b;
-        float qym = raw_ym.g - raw_ym.b;
-        vec2 gradQ = vec2(qxp - qxm, qyp - qym);
-        acc += Q * gradQ * u_charge;
-      }
+      float mySign = (sp < 0.5) ? 1.0 : -1.0;
+      vec2 gradSep = mySign * (gradBlue - gradPink);
 
-      // heat (A channel): blast force from heat gradient
-      if(u_reactOn == 1){
-        float hxp = raw_xp.a;
-        float hxm = raw_xm.a;
-        float hyp = raw_yp.a;
-        float hym = raw_ym.a;
-        vec2 gradH = vec2(hxp - hxm, hyp - hym);
-        // push away from hot regions
-        float blast = (0.10 + 0.18 * u_pressure + 0.03 * u_charge) * u_react;
-        acc -= gradH * blast;
-      }
+      float coh = u_dualCoh;
+
+      // stronger particles cohere more; weak ones drift
+      float p = 0.25 + 0.75 * pw;
+      acc += gradSep * coh * p;
+
+      // pressure from total density to avoid singular collapse
+      float press = coh * 0.65;
+      acc -= gradSum * press;
     }
 
-    if(u_mouseOn == 1 && u_mouseDown > 0.5){
+    }
+
+    if(u_mouseOn == 1 && u_mouseDown > 0.5 && (u_dualOn == 0 || sp < 0.5)){
       vec2 md = pos - u_mouse;
       float d2 = dot(md, md) + 0.002;
       if(d2 < 0.6){
@@ -1447,7 +1927,62 @@
 
     float dt = N * u_tempo;
 
-    float accLen = length(acc);
+    // Duality update: each particle has species (BLUE=0 / PINK=1) and strength pw in k1.zw.
+// Species competes locally using the field channels (g,b). Dominant species "eats" the weaker:
+// weak particles lose strength and eventually flip to the dominant species.
+// NOTE: BALANCE no longer changes these mechanics; it is handled on CPU via reinforcements.
+if(u_dualOn == 1 && u_dualRate > 0.0){
+  float blue = fBlur.g;
+  float pink = fBlur.b;
+  float sum = blue + pink;
+
+  if(sum > 0.000001){
+    float d0 = (blue - pink) / (sum + 0.0005);
+    float dom0 = abs(d0);
+
+    float mySign = (sp < 0.5) ? 1.0 : -1.0;
+    float align = d0 * mySign;
+
+    // Exponential scaling: rate 0-10, quadratic for strong high-end
+    float rate = u_dualRate;
+    float k = rate * rate * 0.05 * dt;
+
+    float gain = max(0.0, align);
+    float loss = max(0.0, -align);
+
+    // POWER EATS: each side's eat multiplier boosts its own aggression
+    float myMul = (sp < 0.5) ? u_eatMulBlue : u_eatMulPink;
+    float enemyMul = (sp < 0.5) ? u_eatMulPink : u_eatMulBlue;
+
+    // grow in home territory (boosted by own multiplier)
+    float gainBoost = (u_energyTransfer == 1) ? 0.40 : 0.15;
+    pw += gain * k * gainBoost * myMul;
+    // lose faster in enemy territory (boosted by enemy's multiplier)
+    float lossMul = (u_energyTransfer == 1) ? 1.80 : 1.20;
+    pw -= loss * k * lossMul * (0.30 + 0.70 * (1.0 - pw)) * enemyMul;
+    pw = clamp(pw, 0.0, 1.0);
+
+    // Flip: particle converts to dominant species (this IS the "eating creates more particles")
+    // ENERGY TRANSFER: much easier to flip + flipped particles are stronger (snowball)
+    float flipPw, flipDom;
+    if(u_energyTransfer == 1){
+      flipPw  = 0.18 + 0.20 * clamp((rate - 1.0) / 5.0, 0.0, 1.0);   // up to 0.38
+      flipDom = 0.15 - 0.08 * clamp((rate - 1.0) / 5.0, 0.0, 1.0);   // down to 0.07
+    } else {
+      flipPw  = 0.08 + 0.15 * clamp((rate - 3.0) / 7.0, 0.0, 1.0);
+      flipDom = 0.28 - 0.15 * clamp((rate - 3.0) / 7.0, 0.0, 1.0);
+    }
+    if(pw < flipPw && dom0 > flipDom){
+      sp = (d0 >= 0.0) ? 0.0 : 1.0;
+      // energy transfer: converted particles are strong (fed by what they consumed)
+      pw = (u_energyTransfer == 1) ? (0.75 + 0.20 * dom0) : 0.60;
+    }
+  }
+}
+
+
+
+float accLen = length(acc);
     if(accLen > 0.5) acc *= 0.5 / accLen;
 
     vel += acc * dt;
@@ -1486,10 +2021,10 @@
 
     if(u_kernelOn == 1){
       o_k0 = vec4(float(p1), float(p4), float(p1p), float(p4p));
-      o_k1 = vec4(float(q), float(ts), 0.0, 0.0);
+      o_k1 = vec4(float(q), float(ts), sp, pw);
     } else {
       o_k0 = ok0;
-      o_k1 = ok1;
+      o_k1 = vec4(ok1.x, ok1.y, sp, pw);
     }
   }`;
 
@@ -1512,11 +2047,14 @@
   uniform int  u_exactIFS;
   uniform sampler2D u_fieldBlur;
   uniform float u_bounds;
+  uniform int u_dualOn;
 
   out float v_speed;
   flat out float v_z;
   flat out float v_gyron;
   out float v_charge;
+  flat out float v_species;
+  out float v_pow;
 
   uint hash(uint x){
     x ^= x >> 16u;
@@ -1542,6 +2080,10 @@
     vec2 pos = st.xy;
     vec2 vel = st.zw;
     v_speed = length(vel);
+
+    vec4 kk1 = texelFetch(u_k1, ivec2(xx,yy), 0);
+    v_species = kk1.z;
+    v_pow = kk1.w;
 
     // nabojovy pomer z rozmazaneho pole (casove vyhlazeny, stabilni)
     vec2 fuv = pos / u_bounds * 0.5 + 0.5;
@@ -1580,7 +2122,9 @@
     vec2 rp = vec2(c*pos.x - s*pos.y, s*pos.x + c*pos.y);
 
     gl_Position = vec4((rp.x / u_aspect) * u_scale + u_pan.x, rp.y * u_scale + u_pan.y, 0.0, 1.0);
-    gl_PointSize = (u_exactIFS == 1) ? 2.0 : 1.0;
+    float ps = (u_exactIFS == 1) ? 2.0 : 1.0;
+    if(u_dualOn == 1) ps += clamp(v_pow, 0.0, 1.0) * 0.8;
+    gl_PointSize = ps;
   }`;
 
   const FS_POINTS = `#version 300 es
@@ -1590,11 +2134,30 @@
   flat in float v_z;
   flat in float v_gyron;
   in float v_charge;
+  flat in float v_species;
+  in float v_pow;
   uniform float u_scale;
+  uniform int u_dualOn;
+  uniform int u_dualColors;
   uniform float u_alphaMul;
   uniform int u_exactIFS;
   uniform int u_palette;
   out vec4 o_col;
+
+  vec3 dualFriendly(int scheme){
+    if(scheme == 1) return vec3(1.00, 0.65, 0.0);   // CRT AMBER (P3 phosphor)
+    if(scheme == 2) return vec3(1.00, 1.00, 1.00);   // WHITE
+    if(scheme == 3) return vec3(0.20, 0.55, 0.95);   // MIL BLUE
+    if(scheme == 4) return vec3(1.00, 1.00, 1.00);   // WHITE (mono)
+    return vec3(0.0, 0.85, 1.00);                     // BLUE
+  }
+  vec3 dualEnemy(int scheme){
+    if(scheme == 1) return vec3(0.0, 1.00, 0.15);    // CRT GREEN (P1 phosphor)
+    if(scheme == 2) return vec3(0.15, 0.20, 0.60);   // DARK BLUE
+    if(scheme == 3) return vec3(0.90, 0.15, 0.10);   // MIL RED
+    if(scheme == 4) return vec3(0.92, 0.82, 1.00);   // VIOLET GREY
+    return vec3(1.00, 0.0, 0.75);                     // PINK
+  }
 
   vec3 pal(int z, int p){
     if(p==0){
@@ -1645,6 +2208,37 @@
 
   void main(){
     float e = clamp(v_speed * 28.0, 0.0, 1.0);
+
+    // Duality override: render particles as two explicit species (FRIENDLY/ENEMY).
+    if(u_dualOn == 1){
+      vec3 friendly = dualFriendly(u_dualColors);
+      vec3 enemy = dualEnemy(u_dualColors);
+      vec3 c = (v_species < 0.5) ? friendly : enemy;
+
+      float p = clamp(v_pow, 0.0, 1.0);
+
+      // CRT phosphor scheme: much brighter, glowing
+      if(u_dualColors == 1){
+        c = mix(c*0.80, c*1.50, 0.40 + 0.60*e);
+        c *= (0.70 + 0.30*p);
+      // Mono scheme: boost enemy grey so it survives dimming pipeline
+      } else if(u_dualColors == 4){
+        c = mix(c*0.75, c*1.40, 0.40 + 0.60*e);
+        c *= (0.65 + 0.35*p);
+      } else {
+        c = mix(c*0.55, c, 0.35 + 0.65*e);
+        c *= (0.55 + 0.45*p);
+      }
+      if(v_gyron > 0.5) c = mix(c, vec3(1.0), 0.30);
+
+      float alpha = 0.20 * u_scale * u_scale * u_alphaMul;
+      if(u_dualColors == 1) alpha *= 1.6; // CRT phosphor glow
+      if(u_dualColors == 4) alpha *= 1.8; // mono needs extra visibility
+      if(u_exactIFS == 1) alpha = 0.012 * u_alphaMul;
+      o_col = vec4(c, clamp(alpha, 0.001, 0.50));
+      return;
+    }
+
     bool vivid = (u_palette >= 6);
 
     if(!vivid){
@@ -1711,8 +2305,10 @@
   const progBlit      = program(VS_QUAD, FS_BLIT);
   const progFieldFade = program(VS_QUAD, FS_FIELD_FADE);
   const progFieldDep  = program(VS_POINTS_FIELD, FS_FIELD_DEPOSIT);
+  const progZoneCount = program(VS_ZONE_COUNT, FS_ZONE_COUNT);
   const progBlur      = program(VS_QUAD, FS_BLUR);
   const progFieldReact= program(VS_QUAD, FS_FIELD_REACT);
+  const progTotalCount= program(VS_TOTAL_COUNT, FS_TOTAL_COUNT);
 
   // =========================
   // VAO
@@ -1756,6 +2352,12 @@
   const fieldTemp = tex2D(FIELD_SIZE, FIELD_SIZE, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR);
 
   const fboField = [fboMRT([fieldTex[0]]), fboMRT([fieldTex[1]])];
+
+  // 1x1 counter target for robust zone presence (counts BLUE/PINK particles in zone)
+  const zoneCountTex = tex2D(1, 1, gl.RGBA32F, gl.RGBA, gl.FLOAT, gl.NEAREST);
+  const fboZoneCount = fboMRT([zoneCountTex]);
+  const totalCountTex = tex2D(1, 1, gl.RGBA32F, gl.RGBA, gl.FLOAT, gl.NEAREST);
+  const fboTotalCount = fboMRT([totalCountTex]);
   const fboBlur  = [fboMRT([fieldBlur[0]]), fboMRT([fieldBlur[1]])];
   const fboTemp  = fboMRT([fieldTemp]);
 
@@ -1816,6 +2418,18 @@
     react: U(progPhys,'u_react'),
     mouseOn: U(progPhys,'u_mouseOn'), chaosOn: U(progPhys,'u_chaosOn'),
     pumpOn: U(progPhys,'u_pumpOn'), exactIFS: U(progPhys,'u_exactIFS'),
+    dualOn: U(progPhys,'u_dualOn'), dualRate: U(progPhys,'u_dualRate'), dualEq: U(progPhys,'u_dualEq'), dualCoh: U(progPhys,'u_dualCoh'),
+    eatMulBlue: U(progPhys,'u_eatMulBlue'), eatMulPink: U(progPhys,'u_eatMulPink'),
+    energyTransfer: U(progPhys,'u_energyTransfer'),
+    reinfOn: U(progPhys,'u_reinfOn'),
+    reinfProb: U(progPhys,'u_reinfProb'),
+    reinfSide: U(progPhys,'u_reinfSide'),
+    reinfSeed: U(progPhys,'u_reinfSeed'),
+    reinfDir: U(progPhys,'u_reinfDir'),
+    reinfSpeed: U(progPhys,'u_reinfSpeed'),
+    reinfSpread: U(progPhys,'u_reinfSpread'),
+    reinfMulBlue: U(progPhys,'u_reinfMulBlue'),
+    reinfMulPink: U(progPhys,'u_reinfMulPink'),
     grav: U(progPhys,'u_grav'), pump: U(progPhys,'u_pump'),
     charge: U(progPhys,'u_charge'), pressure: U(progPhys,'u_pressure'),
     mouse: U(progPhys,'u_mouse'), mouseDown: U(progPhys,'u_mouseDown'),
@@ -1839,6 +2453,8 @@
     palette: U(progPts,'u_palette'),
     fieldBlur: U(progPts,'u_fieldBlur'),
     bounds: U(progPts,'u_bounds'),
+    dualOn: U(progPts,'u_dualOn'),
+    dualColors: U(progPts,'u_dualColors'),
   };
 
   const uFade = { prev: U(progFade,'u_prev'), fade: U(progFade,'u_fade') };
@@ -1857,16 +2473,26 @@
     state: U(progFieldDep,'u_state'), k0: U(progFieldDep,'u_k0'), k1: U(progFieldDep,'u_k1'),
     bounds: U(progFieldDep,'u_bounds'), tm: U(progFieldDep,'u_tm'),
     frame: U(progFieldDep,'u_frame'), kernelOn: U(progFieldDep,'u_kernelOn'),
+    dualOn: U(progFieldDep,'u_dualOn'),
+    dualEq: U(progFieldDep,'u_dualEq'),
     deposit: U(progFieldDep,'u_deposit'),
   };
 
   const uBlur = { tex: U(progBlur,'u_tex'), dir: U(progBlur,'u_dir') };
   const uFieldReact = {
-    prev: U(progFieldReact,'u_prev'),
-    texel: U(progFieldReact,'u_texel'),
-    charge: U(progFieldReact,'u_charge'),
+    prev:     U(progFieldReact,'u_prev'),
+    texel:    U(progFieldReact,'u_texel'),
+    charge:   U(progFieldReact,'u_charge'),
     pressure: U(progFieldReact,'u_pressure'),
-    react: U(progFieldReact,'u_react'),
+    react:    U(progFieldReact,'u_react'),
+    reactOn:  U(progFieldReact,'u_reactOn'),
+    dualOn:   U(progFieldReact,'u_dualOn'),
+    dualRate: U(progFieldReact,'u_dualRate'),
+    dualEq:   U(progFieldReact,'u_dualEq'),
+    dualCoh:  U(progFieldReact,'u_dualCoh'),
+    eatMulBlue: U(progFieldReact,'u_eatMulBlue'),
+    eatMulPink: U(progFieldReact,'u_eatMulPink'),
+    energyTransfer: U(progFieldReact,'u_energyTransfer'),
   };
 
   // =========================
@@ -2147,6 +2773,26 @@
     ui.spin.value = '0.000';
   }
 
+
+  // Game-safe reset: re-seed particles ONLY (no trail realloc, no UI side effects).
+  function resetParticlesOnly(){
+    seed = (Math.random()*1e9)>>>0;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboPart[0]);
+    gl.viewport(0,0,TEX_SIZE,TEX_SIZE);
+    gl.useProgram(progInit);
+    gl.uniform1ui(uInit.seed, seed);
+    gl.bindVertexArray(vaoQuad);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    // Ensure init pass is complete before game logic starts reading counts.
+    gl.finish();
+
+    partFlip = 0;
+    frame = 0;
+    kickFrames = 0;
+  }
+
+
   // VÝCHOZÍ: reset sliders to defaults + reset simulation
   const DEFAULTS = {
     tglKernel: true, tglField: true, tglMouse: true, tglChaos: true, tglPump: true, tglReact: false, tglExact: false,
@@ -2204,22 +2850,52 @@
     gameUI.thresh.disabled = locked;
     gameUI.coverage.disabled = locked;
     gameUI.grace.disabled = locked;
+    if(gameUI.winArea) gameUI.winArea.disabled = locked;
+    if(gameUI.winPresence) gameUI.winPresence.disabled = locked;
+    if(gameUI.dualOn) gameUI.dualOn.disabled = locked;
+    if(gameUI.dualRate) gameUI.dualRate.disabled = locked;
+    if(gameUI.dualEq) gameUI.dualEq.disabled = locked;
+    if(gameUI.dualCoh) gameUI.dualCoh.disabled = locked;
     gameUI.start.disabled = locked;
     gameUI.stop.disabled = !locked;
+  }
+
+  function gameResetRun(){
+    // NEW RUN / TRY AGAIN: start from scratch, robustly.
+    // Avoid reallocating big GPU targets here (can stall/crash on some drivers).
+    // 1) ensure canvas & trail targets are valid
+    layout();
+    // 2) reset particles only (new seed)
+    resetParticlesOnly();
+    // 3) wipe field & trail
+    clearField(); fieldFlip = 0;
+    clearTrail(); trailFlip = 0;
+    // 4) ensure trail targets exist at current size (without leaking)
+    // 4) do NOT recreate large trail targets here (can stall on some drivers)
+    // If targets are missing (first run), create once.
+    if(!trailTex || !trailTex[0]){
+      makeTrailTargets(viewW, viewH);
+    }
   }
 
   function gameStart(){
     gameReadUI();
     if(!game.enabled) return;
+    gameResetRun();
+    paused = false;
     game.running = true;
     game.over = false;
     game.time = 0;
     game.tDanger = 0;
+    game.winHold = 0;
+    game.blueHold = 0;
     game.lastT = performance.now();
+    lastCheckT = 0;
     gameLockUI(true);
     gameUI.status.textContent = 'RUNNING';
     gameUI.status.style.color = '#0f0';
     gameUI.overlay.style.display = 'none';
+    gameUI.overlay.classList.remove('game-ended');
     gameUI.startScreen.style.display = 'none';
     gameUI.endScreen.style.display = 'none';
     if(game.locked){
@@ -2232,6 +2908,7 @@
 
   function gameStop(){
     game.running = false;
+    paused = false;
     gameLockUI(false);
     gameUI.status.textContent = game.over ? 'GAME OVER' : 'STOPPED';
     gameUI.status.style.color = game.over ? '#f44' : '#666';
@@ -2241,12 +2918,39 @@
     }
   }
 
-  function gameOver(){
+  
+  function setGameOverStats(kind){
+    const el = document.getElementById('gameOverStats');
+    if(!el) return;
+    const S = game.lastStats;
+    if(!S){ el.textContent = ''; return; }
+    if(S.mode === 'DUAL'){
+      const lines = [];
+      lines.push(`RESULT: ${kind}`);
+      lines.push(`ENEMY PRES: ${S.pinkPresent ? 'YES' : 'NO'}   (zone=${(S.pinkZoneCount||0).toFixed(1)})`);
+      lines.push(`FRIENDLY: ${(S.blueTotalCount||0).toFixed(0)} total   ${(S.blueZoneCount||0).toFixed(0)} in zone`);
+      if(S.winArea) lines.push(`ENEMY AREA: ${S.pinkPct}%   limit ${(S.covMax*100).toFixed(1)}%`);
+      const conds = [];
+      if(S.winArea) conds.push('AREA');
+      if(S.winPresence) conds.push('PRESENCE');
+      lines.push(`WIN CONDITIONS: ${conds.length ? conds.join(' + ') : 'NONE'}`);
+      lines.push(`HOLD: win ${(S.winHold||0).toFixed(2)}s / ${S.grace.toFixed(2)}s   lose ${(S.blueHold||0).toFixed(2)}s / ${S.grace.toFixed(2)}s`);
+      el.textContent = lines.join('\n');
+    } else {
+      el.textContent = '';
+    }
+  }
+
+function gameOver(){
     game.over = true;
     game.running = false;
+    paused = true;
     gameLockUI(false);
     gameUI.status.textContent = 'GAME OVER';
     gameUI.status.style.color = '#f44';
+    gameUI.overTitle.textContent = 'GAME OVER';
+    gameUI.overTitle.style.color = '#f44';
+    setGameOverStats('LOSE');
     showGameEndScreen();
     if(game.locked){
       glStatus.textContent = 'GAME OVER';
@@ -2254,8 +2958,26 @@
     }
   }
 
+  function gameWin(){
+    game.over = true;
+    game.running = false;
+    paused = true;
+    gameLockUI(false);
+    gameUI.status.textContent = 'YOU WIN';
+    gameUI.status.style.color = '#0a0';
+    gameUI.overTitle.textContent = 'YOU WIN';
+    gameUI.overTitle.style.color = '#0a0';
+    setGameOverStats('WIN');
+    showGameEndScreen();
+    if(game.locked){
+      glStatus.textContent = 'YOU WIN';
+      glStatus.style.color = '#0a0';
+    }
+  }
+
+
   // field sampling: read occupancy of zone from field texture
-  function gameSampleField(){
+  function gameSampleField(chanOverride){
     const bounds = 2.2;
     const x0 = Math.max(0, Math.floor(((game.cx - game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
     const y0 = Math.max(0, Math.floor(((game.cy - game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
@@ -2263,18 +2985,110 @@
     const y1 = Math.min(FIELD_SIZE, Math.ceil(((game.cy + game.half) / bounds * 0.5 + 0.5) * FIELD_SIZE));
     const w = x1 - x0;
     const h = y1 - y0;
-    if(w < 1 || h < 1) return 0;
+    if(w < 1 || h < 1) return {fill:0, count:0, area:0};
     const buf = new Float32Array(w * h * 4);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[fieldFlip]);
     gl.readPixels(x0, y0, w, h, gl.RGBA, gl.FLOAT, buf);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     let sum = 0;
+    let sumPres = 0;
+    let maxv = 0;
     const area = w * h;
+    // Zone metric:
+    // - default: MASS in R channel (original simulator)
+    // - DUALITY on: channels mean BLUE=G(1), PINK=B(2)
+    const presThr = Math.min(0.001, game.threshold * 0.10);
+
+    const chan = (chanOverride !== undefined)
+      ? chanOverride
+      : (game.dualOn ? (game.modeEmpty ? 2 : 1) : 0);
+
+
     for(let i = 0; i < area; i++){
-      const mass = buf[i * 4];
-      if(mass > game.threshold) sum++;
+      const v = buf[i * 4 + chan];
+      if(v > maxv) maxv = v;
+      if(v > presThr) sumPres++;
+      if(v > game.threshold) sum++;
     }
-    return sum / area;
+    return {fill: (sum / area), count: sum, presCount: sumPres, area: area, max: maxv, presThr: presThr};
+  }
+
+
+  // Robust presence: count BLUE/PINK particles inside the zone using GPU 1x1 additive pass.
+  // Uses RGBA32F FBOs (max ~3.4e38) to avoid half-float overflow with large particle counts.
+  function gameZoneCountParticles(){
+    if(!game.dualOn) return {blue:0, pink:0};
+
+    const prevViewport = gl.getParameter(gl.VIEWPORT);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboZoneCount);
+    gl.viewport(0,0,1,1);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+
+    gl.clearColor(0,0,0,0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.blendEquation(gl.FUNC_ADD);
+
+    gl.useProgram(progZoneCount);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);  gl.uniform1i(U(progZoneCount,'u_state'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]);     gl.uniform1i(U(progZoneCount,'u_k1'), 1);
+
+    gl.uniform1f(U(progZoneCount,'u_cx'), game.cx);
+    gl.uniform1f(U(progZoneCount,'u_cy'), game.cy);
+    gl.uniform1f(U(progZoneCount,'u_half'), game.half);
+
+    gl.bindVertexArray(vaoEmpty);
+    gl.drawArrays(gl.POINTS, 0, activeN);
+
+    gl.disable(gl.BLEND);
+
+    const pix = new Float32Array(4);
+    gl.readPixels(0,0,1,1, gl.RGBA, gl.FLOAT, pix);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+
+    return {blue: pix[0], pink: pix[1]};
+  }
+
+  function gameTotalCountParticles(){
+    if(!game.dualOn) return {blue:0, pink:0};
+
+    const prevViewport = gl.getParameter(gl.VIEWPORT);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboTotalCount);
+    gl.viewport(0,0,1,1);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+
+    gl.clearColor(0,0,0,0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.blendEquation(gl.FUNC_ADD);
+
+    gl.useProgram(progTotalCount);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, k1Tex[partFlip]); gl.uniform1i(U(progTotalCount,'u_k1'), 0);
+
+    gl.bindVertexArray(vaoEmpty);
+    gl.drawArrays(gl.POINTS, 0, activeN);
+
+    gl.disable(gl.BLEND);
+
+    const pix = new Float32Array(4);
+    gl.readPixels(0,0,1,1, gl.RGBA, gl.FLOAT, pix);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+
+    return {blue: pix[0], pink: pix[1]};
   }
 
   function gameTick(){
@@ -2288,16 +3102,141 @@
     if(game.locked) glTime.textContent = ts;
   }
 
+  let lastCheckT = 0;
+
   function gameCheck(){
     if(!game.running || game.over) return;
-    const fill = gameSampleField();
+    const now = performance.now();
+    const dt = lastCheckT > 0 ? (now - lastCheckT) / 1000 : 0.016;
+    lastCheckT = now;
+
+    // In DUALITY mode, the objective is WIN by eliminating PINK (no pink).
+    if(game.dualOn){
+      const pink = gameSampleField(2);
+      const blue = gameSampleField(1);
+      const zc = gameZoneCountParticles();
+      const tc = gameTotalCountParticles();
+
+      const pinkFill = pink.fill;
+      const pinkCount = pink.count;
+      const pinkPct = (pinkFill * 100).toFixed(1);
+      const pinkPresent = (zc.pink > 0.5);  // sensitive: even few enemy prevent win
+      const bluePresent = (zc.blue > 0.5);
+      // Need meaningful blue presence, not just 1-2 straggler particles
+      const blueAny = (tc.blue > 5.0) || (blue.fill > 0.001);
+
+      game.lastStats = {
+        mode:'DUAL',
+        pinkPct: pinkPct,
+        pinkPresent: pinkPresent,
+        bluePresent: bluePresent,
+        pinkFill: pinkFill,
+        pinkCount: pink.count,
+        blueCount: blue.count,
+        pinkZoneCount: zc.pink,
+        blueZoneCount: zc.blue,
+        blueTotalCount: tc.blue,
+        pinkTotalCount: tc.pink,
+        presThr: pink.presThr,
+        winArea: game.winArea,
+        winPresence: game.winPresence,
+        covMax: game.coverageMax,
+        grace: game.grace,
+        winHold: game.winHold,
+        blueHold: game.blueHold,
+      };
+
+      // Lose condition: no FRIENDLY left anywhere
+      if(!blueAny){
+        game.blueHold += dt;
+        game.winHold = 0;
+        const progL = Math.max(0, Math.min(1, game.blueHold / Math.max(game.grace, 0.01)));
+        gameUI.status.textContent = `NO FRIENDLY ${(progL*100).toFixed(0)}%`;
+        gameUI.status.style.color = '#f44';
+        if(game.locked){
+          glStatus.textContent = gameUI.status.textContent;
+          glStatus.style.color = '#f44';
+        }
+        if(game.blueHold >= game.grace){
+          gameOver();
+        }
+        return;
+      } else {
+        // Gradual decay: don't fully reset on minor flickers
+        game.blueHold = Math.max(0, game.blueHold - dt * 0.5);
+      }
+
+
+      // HUD
+      gameUI.fill.textContent = 'ENEMY ' + pinkPct + '%';
+      if(game.locked) glFill.textContent = 'ENEMY ' + pinkPct + '%';
+
+      if(gameUI.areaStat){
+        const want = game.coverageMax;
+        const okA = (pinkFill <= want);
+        const tag = game.winArea ? '' : ' (off)';
+        gameUI.areaStat.textContent = `ENEMY AREA: ${pinkPct}% / ${(want*100).toFixed(1)}%${tag} ${game.winArea ? (okA?'OK':'BAD') : ''}`;
+      }
+      if(gameUI.presenceStat){
+        const tag = game.winPresence ? '' : ' (off)';
+        const bh = game.blueHold > 0 ? ` | LOSE:${(game.blueHold/Math.max(game.grace,0.01)*100).toFixed(0)}%` : '';
+        gameUI.presenceStat.textContent = `Z: E=${zc.pink.toFixed(0)} F=${zc.blue.toFixed(0)} | T: E=${tc.pink.toFixed(0)} F=${tc.blue.toFixed(0)}${bh}${tag}`;
+      }
+
+      // Win conditions (AND if both enabled)
+      let ok = true;
+      if(game.winArea) ok = ok && (pinkFill <= game.coverageMax);
+      if(game.winPresence) ok = ok && (!pinkPresent);
+
+      // progress-to-win uses GRACE seconds as the required continuous hold time
+      if(ok){
+        game.winHold += dt;
+      } else {
+        // Gradual decay: don't fully reset on minor flickers
+        game.winHold = Math.max(0, game.winHold - dt * 0.5);
+      }
+
+      // show progress in status
+      const prog = Math.max(0, Math.min(1, game.winHold / Math.max(game.grace, 0.01)));
+      gameUI.status.textContent = ok ? `CLEARING ${(prog*100).toFixed(0)}%` : 'CLEAR ENEMY';
+      gameUI.status.style.color = ok ? '#0a0' : '#666';
+      if(game.locked){
+        glStatus.textContent = gameUI.status.textContent;
+        glStatus.style.color = gameUI.status.style.color;
+      }
+
+      if(game.winHold >= game.grace){
+        gameWin();
+      }
+      return;
+    }
+
+    // Non-duality legacy: survive by keeping the zone within limits.
+    const samp = gameSampleField();
+    const fill = samp.fill;
+    const count = samp.count;
     const pct = (fill * 100).toFixed(1);
+    const present = (count > 0);
+
+    if(gameUI.areaStat){
+      const want = game.coverageMax;
+      const ok = game.modeEmpty ? (fill <= want) : (fill >= want);
+      gameUI.areaStat.textContent = `AREA: ${pct}% / ${(want*100).toFixed(1)}% ${ok?'OK':'BAD'}`;
+    }
+    if(gameUI.presenceStat){
+      const okP = game.modeEmpty ? (!present) : (present);
+      gameUI.presenceStat.textContent = `PRES: ${present?'YES':'NO'} ${okP?'OK':'BAD'}`;
+    }
     gameUI.fill.textContent = pct + '%';
     if(game.locked) glFill.textContent = pct + '%';
 
-    const violated = game.modeEmpty
-      ? (fill > game.coverageMax)
-      : (fill < game.coverageMax);
+    let violated = false;
+    if(game.winArea){
+      violated = violated || (game.modeEmpty ? (fill > game.coverageMax) : (fill < game.coverageMax));
+    }
+    if(game.winPresence){
+      violated = violated || (game.modeEmpty ? (count > 0) : (count === 0));
+    }
 
     if(violated){
       game.tDanger += 1/15;
@@ -2307,9 +3246,9 @@
         gameOver();
       }
     } else {
-      game.tDanger = Math.max(0, game.tDanger - 0.5/15);
-      gameUI.fill.style.color = '#0a0';
-      if(game.locked) glFill.style.color = '#0a0';
+      game.tDanger = Math.max(0, game.tDanger - 2/15);
+      gameUI.fill.style.color = '#666';
+      if(game.locked) glFill.style.color = '#666';
     }
   }
 
@@ -2330,10 +3269,27 @@
     if(!game.enabled && game.running) gameStop();
   });
   gameUI.showZone.addEventListener('change', () => { game.showZone = gameUI.showZone.checked; });
+  if(gameUI.dualOn){
+    gameUI.dualOn.addEventListener('change', () => {
+      gameReadUI();
+      // Duality uses the field g/b channels for two particle species (PINK/BLUE).
+      // Clear the field to avoid mixing with any previous +/- charge content.
+      clearField();
+      clearTrail();
+      syncUI();
+    });
+  }
   [gameUI.modeEmpty, gameUI.modeNotEmpty, gameUI.x, gameUI.y, gameUI.size,
-   gameUI.thresh, gameUI.coverage, gameUI.grace].forEach(el => {
+   gameUI.thresh, gameUI.coverage, gameUI.grace,
+   gameUI.winArea, gameUI.winPresence,
+   gameUI.dualRate, gameUI.dualEq, gameUI.dualCoh,
+   gameUI.reinfFlow, gameUI.reinfBlue, gameUI.reinfPink, gameUI.colors].filter(Boolean).forEach(el => {
     el.addEventListener('input', gameReadUI);
   });
+  if(gameUI.reinfWaves){ gameUI.reinfWaves.addEventListener('change', gameReadUI); }
+  if(gameUI.powerEats){ gameUI.powerEats.addEventListener('change', gameReadUI); }
+  if(gameUI.energyTransfer){ gameUI.energyTransfer.addEventListener('change', gameReadUI); }
+
 
   gameUI.start.addEventListener('click', gameStart);
   gameUI.stop.addEventListener('click', gameStop);
@@ -2350,6 +3306,7 @@
     gameUI.endScreen.style.display = 'none';
     gameUI.playBtn.textContent = game.modeEmpty ? 'DEFEND THE ZONE' : 'FILL THE ZONE';
     gameUI.overlay.style.display = '';
+    gameUI.overlay.classList.remove('game-ended');
   }
 
   function showGameEndScreen(){
@@ -2357,6 +3314,7 @@
     gameUI.endScreen.style.display = '';
     gameUI.overTime.textContent = game.time.toFixed(1) + 's';
     gameUI.overlay.style.display = '';
+    gameUI.overlay.classList.add('game-ended');
   }
 
   function enterLockedMode(){
@@ -2400,6 +3358,18 @@
     parts.push('gt' + gameUI.thresh.value);
     parts.push('gC' + gameUI.coverage.value);
     parts.push('gg' + gameUI.grace.value);
+    parts.push('gW' + ((gameUI.winArea && gameUI.winArea.checked) ? '1' : '0') + ((gameUI.winPresence && gameUI.winPresence.checked) ? '1' : '0'));
+    if(gameUI.reinfBlue) parts.push('gRb' + gameUI.reinfBlue.value);
+    if(gameUI.reinfPink) parts.push('gRp' + gameUI.reinfPink.value);
+    if(gameUI.powerEats && gameUI.powerEats.checked) parts.push('gPE1');
+    if(gameUI.energyTransfer && !gameUI.energyTransfer.checked) parts.push('gET0');
+    if(gameUI.dualOn && gameUI.dualOn.checked){
+      parts.push('gd1');
+      parts.push('gD' + gameUI.dualRate.value);
+      if(gameUI.dualEq) parts.push('gE' + gameUI.dualEq.value);
+      if(gameUI.dualCoh) parts.push('gA' + gameUI.dualCoh.value);
+      if(gameUI.colors && parseInt(gameUI.colors.value) > 0) parts.push('gCo' + gameUI.colors.value);
+    }
     parts.push('gL1');
     if(VRAM_BUDGET > (isDesktop ? 800 : 300)){
       parts.push('vm' + VRAM_BUDGET);
@@ -2690,19 +3660,37 @@
     invertHud.classList.toggle('show', on);
   }
 
-  invertBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    invertBtn.setPointerCapture(e.pointerId);
-    setInvert(true);
-  });
-  invertBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    setInvert(false);
-  });
-  invertBtn.addEventListener('pointercancel', (e) => {
-    e.preventDefault();
-    setInvert(false);
-  });
+  // Mobile: toggle mode (tap on/off). Desktop: hold mode (SPACE key).
+  const isMobileInvert = window.matchMedia('(pointer:coarse)').matches;
+
+  // Block touch events on invert button so canvas doesn't see them
+  invertBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive:false});
+  invertBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive:false});
+  invertBtn.addEventListener('touchmove', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive:false});
+
+  if(isMobileInvert){
+    invertBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setInvert(!invertHold);
+    });
+    invertBtn.addEventListener('pointerup', (e) => { e.preventDefault(); e.stopPropagation(); });
+    invertBtn.addEventListener('pointercancel', (e) => { e.preventDefault(); e.stopPropagation(); });
+  } else {
+    invertBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      invertBtn.setPointerCapture(e.pointerId);
+      setInvert(true);
+    });
+    invertBtn.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      setInvert(false);
+    });
+    invertBtn.addEventListener('pointercancel', (e) => {
+      e.preventDefault();
+      setInvert(false);
+    });
+  }
 
   // =========================
   // FPS
@@ -2718,6 +3706,69 @@
   // =========================
   // Main loop
   // =========================
+
+  // =========================
+  // Duality reinforcements (BALANCE slider)
+  // =========================
+  let reinfFramesLeft = 0;
+  let reinfTimer = 0.0;
+  let reinfDirX = 1.0, reinfDirY = 0.0;
+  let reinfSide = 1; // 0=BLUE, 1=PINK
+  let reinfProb = 0.0;
+  let reinfSeed = 1 >>> 0;
+  let reinfSpeed = 0.05;
+  let reinfSpread = 0.02;
+
+  const REINF_SAMPLE_SIZE = 32;
+  const reinfBuf = new Float32Array(REINF_SAMPLE_SIZE * REINF_SAMPLE_SIZE * 4);
+
+  function sampleDualDominance(){
+    const s = REINF_SAMPLE_SIZE;
+    const x0 = (FIELD_SIZE - s) >> 1;
+    const y0 = (FIELD_SIZE - s) >> 1;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboBlur[fieldFlip]);
+    gl.readPixels(x0, y0, s, s, gl.RGBA, gl.FLOAT, reinfBuf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    let sumG = 0, sumB = 0;
+    const n = s * s;
+    for(let i=0;i<n;i++){
+      sumG += reinfBuf[i*4 + 1];
+      sumB += reinfBuf[i*4 + 2];
+    }
+    const den = sumG + sumB + 1e-9;
+    return (sumG - sumB) / den; // -1..+1 (pink..blue)
+  }
+
+  function startReinforcement(balance, activeN){
+    // decide which side gets reinforcements: the weaker one (by field dominance)
+    let dom = 0.0;
+    try { dom = sampleDualDominance(); } catch(e){ dom = 0.0; }
+    const absDom = Math.abs(dom);
+
+    if(absDom < 0.02){
+      reinfSide = (Math.random() < 0.5) ? 0 : 1;
+    } else {
+      reinfSide = (dom > 0.0) ? 1 : 0; // blue dominates => reinforce pink
+    }
+
+    // random inward direction
+    const ang = Math.random() * Math.PI * 2;
+    reinfDirX = Math.cos(ang);
+    reinfDirY = Math.sin(ang);
+
+    const b2 = balance * balance;
+    const duration = Math.round(6 + 10 * balance);
+    reinfFramesLeft = duration;
+
+    // target spawns per frame, scaled by imbalance and balance
+    const targetPerFrame = (120 + 1400 * b2) * (0.6 + 0.8 * absDom);
+    reinfProb = Math.min(0.02, targetPerFrame / Math.max(1, activeN));
+
+    reinfSeed = (Math.random() * 4294967295) >>> 0;
+    reinfSpeed = 0.03 + 0.08 * b2;
+    reinfSpread = 0.01 + 0.05 * balance;
+  }
+
   function loop(){
     if(needLayout) layout();
 
@@ -2857,6 +3908,8 @@
       gl.uniform1i(uFieldDep.tm, tm);
       gl.uniform1ui(uFieldDep.frame, frame>>>0);
       gl.uniform1i(uFieldDep.kernelOn, kernelOn);
+      gl.uniform1i(uFieldDep.dualOn, game.dualOn ? 1 : 0);
+      gl.uniform1f(uFieldDep.dualEq, game.dualEq);
       gl.uniform1f(uFieldDep.deposit, deposit * Math.max(1.0 - ffield, 0.005) * (FIELD_SIZE * FIELD_SIZE) / activeN);
 
       gl.activeTexture(gl.TEXTURE0);
@@ -2873,8 +3926,8 @@
       gl.drawArrays(gl.POINTS, 0, activeN);
       gl.disable(gl.BLEND);
 
-      // Optional: local field reactions (annihilation + fission)
-      if(fieldOn === 1 && ui.tglReact.checked){
+      // Optional: local field reactions (annihilation + fission) + duality (BLUE/PINK eat)
+      if((fieldOn === 1 && ui.tglReact.checked && !game.dualOn) || game.dualOn){
         const reactWrite = 1 - fieldWrite;
         gl.bindFramebuffer(gl.FRAMEBUFFER, fboField[reactWrite]);
         gl.viewport(0,0,FIELD_SIZE,FIELD_SIZE);
@@ -2886,6 +3939,14 @@
         gl.uniform1f(uFieldReact.charge, charge);
         gl.uniform1f(uFieldReact.pressure, pressure);
         gl.uniform1f(uFieldReact.react, react);
+        gl.uniform1i(uFieldReact.reactOn, (fieldOn === 1 && ui.tglReact.checked && !game.dualOn) ? 1 : 0);
+        gl.uniform1i(uFieldReact.dualOn, game.dualOn ? 1 : 0);
+        gl.uniform1f(uFieldReact.dualRate, game.dualRate);
+        gl.uniform1f(uFieldReact.dualEq, game.dualEq);
+        if(uFieldReact.dualCoh) gl.uniform1f(uFieldReact.dualCoh, game.dualCoh);
+        gl.uniform1f(uFieldReact.eatMulBlue, game.powerEats ? game.reinfBlue : 1.0);
+        gl.uniform1f(uFieldReact.eatMulPink, game.powerEats ? game.reinfPink : 1.0);
+        gl.uniform1i(uFieldReact.energyTransfer, game.energyTransfer ? 1 : 0);
         gl.bindVertexArray(vaoQuad);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         fieldWrite = reactWrite;
@@ -2914,10 +3975,105 @@
       fieldFlip = fieldWrite;
     }
 
+
     // =========================
+    // Duality reinforcements (BALANCE slider)
+    // =========================
+    let reinfOn = 0;
+    // Reinforcements are driven by FLOW (independent). BALANCE only changes how adaptive it is.
+    // WAVES (default off) affects PINK only: pulses that grow over time.
+    if(game.dualOn && game.reinfFlow > 0.0001){
+      const flow = Math.max(0.0, game.reinfFlow);          // base rate knob
+      const bal  = Math.max(0.0, Math.min(1.0, game.dualEq)); // adaptive knob (0 = constant, 1 = strongly balancing)
+
+      // measure dominance (blue - pink) from field; fallback 0
+      let dom = 0.0;
+      try { dom = sampleDualDominance(); } catch(e){ dom = 0.0; }
+      const absDom = Math.min(1.0, Math.abs(dom));
+
+      // base interval from flow (higher flow -> more frequent spawn windows)
+      const interval = Math.max(0.05, 1.2 / (0.2 + flow)); // ~6s..0.2s range
+
+      // adaptive gain: if blue dominates (dom>0) -> increase pink; if pink dominates -> decrease pink.
+      let pinkGain = 1.0;
+      if(dom > 0.0) pinkGain = 1.0 + (2.2 * bal) * absDom;
+      else          pinkGain = Math.max(0.0, 1.0 - (1.4 * bal) * absDom);
+
+      // WAVES: pulses for PINK only, with slow ramp-up over time
+      // pulse in [0..1], grows in amplitude with time
+      let wavePulse = 1.0;
+      if(game.reinfWaves){
+        const period = 4.0; // seconds
+        const phase = (game.time / period) % 1.0;
+        // triangular-ish pulse with smooth edges
+        const tri = 1.0 - Math.abs(2.0 * phase - 1.0);
+        wavePulse = tri * tri; // sharpen
+        const grow = 1.0 + 0.15 * game.time; // increasing pressure
+        pinkGain *= (0.35 + 0.65 * wavePulse) * grow;
+      }
+
+      reinfTimer += dt / 1000;
+      if(reinfFramesLeft <= 0 && reinfTimer >= interval){
+        // decide direction + seed each window (direction always inward)
+        const ang = Math.random() * Math.PI * 2;
+        reinfDirX = Math.cos(ang);
+        reinfDirY = Math.sin(ang);
+
+        // we keep both sides available (sliders), but by default PINK is the one that matters.
+        // BALANCE changes only the dynamic scaling (pinkGain), not whether reinforcements happen.
+        reinfSide = 1; // PINK side for now (requested)
+
+        // duration in frames (short burst)
+        const dur = Math.round(6 + 18 * Math.min(1.0, flow/5.0));
+        reinfFramesLeft = dur;
+
+        // spawn probability per particle per frame
+        // NOTE: activeN is particles count; keep prob small
+        const perFrame = (220.0 + 4200.0 * Math.min(1.0, flow/5.0)) * pinkGain;
+        reinfProb = Math.min(0.12, perFrame / Math.max(1, activeN));
+
+        reinfSeed = (Math.random() * 4294967295) >>> 0;
+        reinfSpeed = 0.03 + 0.18 * Math.min(1.0, flow/5.0);
+        reinfSpread = 0.01 + 0.06 * Math.min(1.0, flow/5.0);
+
+        reinfTimer = 0.0;
+      }
+
+      if(reinfFramesLeft > 0){
+        reinfFramesLeft--;
+        reinfOn = 1;
+      }
+    } else {
+      reinfFramesLeft = 0;
+      reinfProb = 0.0;
+      reinfTimer = 0.0;
+    }
+
+// --- Reinforcement HUD (build-up + direction) ---
+    if(gameUI.reinfStat){
+      const flow = game.reinfFlow || 0.0;
+      if(game.dualOn && flow > 0.0001){
+        const interval = Math.max(0.05, 1.2 / (0.2 + flow));
+        const build = (reinfFramesLeft > 0) ? 1.0 : Math.max(0.0, Math.min(1.0, reinfTimer / interval));
+
+        // arrow from dir
+        const a = Math.atan2(reinfDirY, reinfDirX);
+        const dirs = ['→','↗','↑','↖','←','↙','↓','↘'];
+        const di = ((Math.round(a / (Math.PI/4)) % 8) + 8) % 8;
+        const arrow = dirs[di];
+
+        const pct = Math.round(build * 100);
+        const mode = game.reinfWaves ? 'WAVES' : 'BAL';
+        const bal  = Math.max(0.0, Math.min(1.0, game.dualEq));
+        gameUI.reinfStat.textContent = `REINF ${mode}: ${pct}% ENEMY ${arrow} | flow ${flow.toFixed(2)} | bal ${bal.toFixed(2)}`;
+      } else {
+        gameUI.reinfStat.textContent = 'REINF: off';
+      }
+    }
+// =========================
     // 1) Physics step (sub-stepped for smoother motion)
     // =========================
-    const reactOn = (fieldOn === 1 && ui.tglReact.checked) ? 1 : 0;
+    const reactOn = (fieldOn === 1 && ui.tglReact.checked && !game.dualOn) ? 1 : 0;
     const substeps = reactOn ? 2 : 1;
     const tempoSub = tempo / substeps;
 
@@ -2938,9 +4094,31 @@
     gl.uniform1i(uPhys.pumpOn,   (sub === 0) ? pumpOn : 0);
     gl.uniform1i(uPhys.exactIFS, ui.tglExact.checked ? 1 : 0);
 
+    // Duality (BLUE/PINK). Player input affects BLUE only.
+    gl.uniform1i(uPhys.dualOn, game.dualOn ? 1 : 0);
+    gl.uniform1f(uPhys.dualRate, game.dualOn ? game.dualRate : 0.0);
+    gl.uniform1f(uPhys.dualEq, game.dualOn ? game.dualEq : 0.0);
+    gl.uniform1f(uPhys.dualCoh, game.dualOn ? game.dualCoh : 0.0);
+    gl.uniform1f(uPhys.eatMulBlue, game.powerEats ? game.reinfBlue : 1.0);
+    gl.uniform1f(uPhys.eatMulPink, game.powerEats ? game.reinfPink : 1.0);
+    gl.uniform1i(uPhys.energyTransfer, game.energyTransfer ? 1 : 0);
+
+    // Reinforcements (BALANCE slider): event-driven respawn waves
+    if(uPhys.reinfOn){
+      gl.uniform1i(uPhys.reinfOn, reinfOn);
+      gl.uniform1f(uPhys.reinfProb, (reinfOn ? reinfProb * (reinfSide===0 ? game.reinfBlue : game.reinfPink) : 0.0));
+      gl.uniform1i(uPhys.reinfSide, reinfSide);
+      gl.uniform1ui(uPhys.reinfSeed, (reinfSeed ^ ((frame * 374761393)>>>0))>>>0);
+      gl.uniform2f(uPhys.reinfDir, reinfDirX, reinfDirY);
+      gl.uniform1f(uPhys.reinfSpeed, reinfSpeed);
+      gl.uniform1f(uPhys.reinfSpread, reinfSpread);
+      gl.uniform1f(uPhys.reinfMulBlue, game.reinfBlue);
+      gl.uniform1f(uPhys.reinfMulPink, game.reinfPink);
+    }
+
     gl.uniform1f(uPhys.grav, (fieldOn ? grav : 0.0));
     gl.uniform1f(uPhys.pump, (pumpOn ? pump : 0.0));
-    gl.uniform1f(uPhys.charge, (fieldOn ? charge : 0.0));
+    gl.uniform1f(uPhys.charge, (fieldOn && !game.dualOn ? charge : 0.0));
     gl.uniform1f(uPhys.pressure, (fieldOn ? pressure : 0.0));
 
     gl.uniform2f(uPhys.mouse, mx, my);
@@ -3020,6 +4198,8 @@
     gl.uniform1i(uPts.exactIFS, ui.tglExact.checked ? 1 : 0);
     gl.uniform1i(uPts.palette, parseInt(ui.palette.value));
     gl.uniform1f(uPts.bounds, bounds);
+    gl.uniform1i(uPts.dualOn, game.dualOn ? 1 : 0);
+    gl.uniform1i(uPts.dualColors, game.dualColors || 0);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, stateTex[partFlip]);
