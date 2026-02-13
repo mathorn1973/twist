@@ -4271,16 +4271,30 @@ function gameOver(){
   // FULLSCREEN
   // =========================
   const fullscreenBtn = document.getElementById('fullscreenBtn');
+  let fullscreenClean = false;
+
   function toggleFullscreen(){
     if(document.fullscreenElement){
       document.exitFullscreen().catch(()=>{});
     } else {
       document.documentElement.requestFullscreen().catch(()=>{});
+      // Enter clean mode: hide UI except audio + fullscreen
+      fullscreenClean = true;
+      document.body.classList.add('demo-mode');
+      fullscreenBtn.textContent = '✕';
+      fullscreenBtn.title = 'Exit fullscreen';
     }
   }
   fullscreenBtn.addEventListener('click', () => {
     if(demoActive){
       demoStop();
+    } else if(fullscreenClean){
+      // Exit clean fullscreen
+      fullscreenClean = false;
+      document.body.classList.remove('demo-mode');
+      fullscreenBtn.textContent = '⛶';
+      fullscreenBtn.title = 'Fullscreen';
+      if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
     } else {
       toggleFullscreen();
     }
@@ -4495,9 +4509,33 @@ function gameOver(){
       const idx = demoSeedOrder[demoStep % demoSeedOrder.length];
       const seed = DEMO_SEEDS[idx];
       demoApplySeed(seed);
+
+      // Override palette ~50% of the time for more variety
+      if(Math.random() < 0.5){
+        const maxPal = parseInt(ui.palette.max) || 10;
+        ui.palette.value = String(demoRandInt(0, maxPal));
+      }
+      // Vary tempo ±30% from seed value
+      if(Math.random() < 0.4){
+        const base = parseFloat(ui.tempo.value);
+        demoSet(ui.tempo, base * demoRand(0.7, 1.4));
+      }
+      // Occasionally tweak scale for zoom variety
+      if(Math.random() < 0.3){
+        demoSet(ui.scale, demoRand(0.3, 1.0));
+      }
       // Add slight spin variation for visual interest
       if(parseFloat(ui.spin.value) === 0 && Math.random() > 0.4){
         ui.spin.value = (demoRand(-0.003, 0.003)).toFixed(3);
+      }
+      // Sometimes nudge chaos/pressure for dynamics
+      if(Math.random() < 0.25){
+        const ch = parseFloat(ui.chaos.value);
+        demoSet(ui.chaos, ch * demoRand(0.6, 1.5));
+      }
+      if(Math.random() < 0.25){
+        const pr = parseFloat(ui.pressure.value);
+        demoSet(ui.pressure, pr * demoRand(0.5, 1.8));
       }
     } else {
       demoRandomize();
@@ -4565,6 +4603,7 @@ function gameOver(){
   function demoStop(){
     if(!demoActive) return;
     demoActive = false;
+    fullscreenClean = false;
     audioEngine._listeners['section'] = (audioEngine._listeners['section']||[]).filter(fn => fn !== demoOnSection);
 
     document.body.classList.remove('demo-mode');
@@ -4580,10 +4619,16 @@ function gameOver(){
 
   document.getElementById('demoBtn').addEventListener('click', demoStart);
 
-  // Also exit demo on ESC (fullscreen exit)
+  // Also exit demo/clean on ESC (fullscreen exit)
   document.addEventListener('fullscreenchange', () => {
-    if(!document.fullscreenElement && demoActive){
-      demoStop();
+    if(!document.fullscreenElement){
+      if(demoActive) demoStop();
+      if(fullscreenClean){
+        fullscreenClean = false;
+        document.body.classList.remove('demo-mode');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.title = 'Fullscreen';
+      }
     }
   });
 
