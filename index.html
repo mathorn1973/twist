@@ -4294,6 +4294,7 @@ function gameOver(){
   let demoStep = 0;
   let demoSectionCount = 0;
   let demoLastChange = 0;
+  let demoSeedOrder = [];
 
   function demoRand(lo, hi){ return lo + Math.random() * (hi - lo); }
   function demoRandInt(lo, hi){ return lo + Math.floor(Math.random() * (hi - lo + 1)); }
@@ -4304,108 +4305,206 @@ function gameOver(){
     el.value = Number(val).toFixed(dec);
   }
 
-  const DEMO_PRESETS = [
-    // Each is a function that randomizes settings for visual variety
-    () => { // flowing organic
-      demoSet(ui.pressure, demoRand(0.5, 3.0));
-      demoSet(ui.chaos, demoRand(0.5, 2.5));
-      demoSet(ui.damping, demoRand(0.3, 0.8));
-      demoSet(ui.force, demoRand(0.1, 0.6));
-      demoSet(ui.charge, demoRand(0, 6));
-      demoSet(ui.vortex, demoRand(-0.5, 0.5));
-      demoSet(ui.tempo, demoRand(0.5, 1.5));
-      demoSet(ui.fade, demoRand(0.4, 0.85));
-      demoSet(ui.grav, demoRand(0, 3));
-      demoSet(ui.ffield, demoRand(0.85, 0.98));
-      demoSet(ui.deposit, demoRandInt(1, 10));
-      ui.tglChaos.checked = true;
-      ui.tglPump.checked = Math.random() > 0.5;
-      ui.tglReact.checked = false;
-      ui.spin.value = (Math.random() > 0.5 ? demoRand(-0.004, -0.001) : demoRand(0.001, 0.004)).toFixed(3);
+  const DEMO_SEEDS = [
+    { // seed 0 — charged vortex
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false},
+      mouse: 'attract',
+      params: {damping:0.533, force:0.025, chaos:5, fade:0.5, scale:0.65, spin:0, ffield:1, deposit:3, grav:0.322, pressure:1.93, timeK:38, timeMin:0.05, charge:10, pump:0, particles:19, tempo:1.62, palette:7, vortex:0.85},
     },
-    () => { // high energy vortex
-      demoSet(ui.pressure, demoRand(2.0, 5.0));
-      demoSet(ui.chaos, demoRand(1.5, 3.0));
-      demoSet(ui.damping, demoRand(0.2, 0.5));
-      demoSet(ui.force, demoRand(0.2, 0.8));
-      demoSet(ui.charge, demoRand(3, 10));
-      demoSet(ui.vortex, demoRand(0.3, 2.0) * (Math.random()>0.5?1:-1));
-      demoSet(ui.tempo, demoRand(1.0, 2.5));
-      demoSet(ui.fade, demoRand(0.5, 0.75));
-      demoSet(ui.grav, demoRand(0, 5));
-      demoSet(ui.ffield, demoRand(0.88, 1.0));
-      demoSet(ui.deposit, demoRandInt(2, 15));
-      ui.tglChaos.checked = true;
-      ui.tglPump.checked = true;
-      ui.spin.value = demoRand(0.002, 0.008).toFixed(3);
+    { // seed 1 — digital drift
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:true, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.5, force:0.0737, chaos:2.36, fade:0.566, scale:0.9, spin:0.007, ffield:0.9988, deposit:12, grav:0.037, pressure:0.973, timeK:175.7, timeMin:0.0207, charge:0.49, pump:0.086, particles:19, tempo:1.04, palette:8, vortex:0.5, react:1},
     },
-    () => { // calm ethereal
-      demoSet(ui.pressure, demoRand(0.1, 1.5));
-      demoSet(ui.chaos, demoRand(0.0, 1.0));
-      demoSet(ui.damping, demoRand(0.6, 0.95));
-      demoSet(ui.force, demoRand(0.05, 0.3));
-      demoSet(ui.charge, demoRand(0, 3));
-      demoSet(ui.vortex, demoRand(-0.2, 0.2));
-      demoSet(ui.tempo, demoRand(0.3, 0.8));
-      demoSet(ui.fade, demoRand(0.55, 0.92));
-      demoSet(ui.grav, demoRand(0, 2));
-      demoSet(ui.ffield, demoRand(0.90, 0.97));
-      demoSet(ui.deposit, demoRandInt(1, 5));
-      ui.tglChaos.checked = Math.random() > 0.3;
-      ui.tglPump.checked = false;
-      ui.spin.value = demoRand(-0.002, 0.002).toFixed(3);
+    { // seed 2 — dust nebula
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:true},
+      mouse: 'repel',
+      params: {damping:0.5, force:0, chaos:3.88, fade:0.719, scale:0.8, spin:0, ffield:0.96, deposit:1, grav:0.2, pressure:0.031, timeK:78, timeMin:0.14, charge:0.3, pump:0.1, particles:22, tempo:1, palette:1, vortex:0},
     },
-    () => { // plasma storm
-      demoSet(ui.pressure, demoRand(1.0, 4.0));
-      demoSet(ui.chaos, demoRand(2.0, 3.0));
-      demoSet(ui.damping, demoRand(0.1, 0.4));
-      demoSet(ui.force, demoRand(0.3, 1.0));
-      demoSet(ui.charge, demoRand(5, 10));
-      demoSet(ui.vortex, demoRand(-1.5, 1.5));
-      demoSet(ui.tempo, demoRand(1.5, 3.0));
-      demoSet(ui.fade, demoRand(0.3, 0.65));
-      demoSet(ui.grav, demoRand(1, 5));
-      demoSet(ui.ffield, demoRand(0.85, 0.96));
-      demoSet(ui.deposit, demoRandInt(5, 20));
-      ui.tglChaos.checked = true;
-      ui.tglPump.checked = true;
-      ui.spin.value = demoRand(0.003, 0.012).toFixed(3);
+    { // seed 3 — ocean trails
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.879, force:0.025, chaos:5, fade:0.914, scale:0.33, spin:0, ffield:0.995, deposit:3, grav:2, pressure:2, timeK:16.5, timeMin:0.0166, charge:10, pump:0.017, particles:19, tempo:2.41, palette:10, vortex:0.37, react:1},
     },
-    () => { // crystalline minimal
-      demoSet(ui.pressure, demoRand(0.5, 2.0));
-      demoSet(ui.chaos, demoRand(0.0, 0.5));
-      demoSet(ui.damping, demoRand(0.7, 0.9));
-      demoSet(ui.force, demoRand(0.1, 0.4));
-      demoSet(ui.charge, demoRand(0, 2));
-      demoSet(ui.vortex, 0);
-      demoSet(ui.tempo, demoRand(0.5, 1.0));
-      demoSet(ui.fade, demoRand(0.6, 0.85));
-      demoSet(ui.grav, demoRand(0, 1));
-      demoSet(ui.ffield, demoRand(0.92, 1.005));
-      demoSet(ui.deposit, demoRandInt(1, 4));
-      ui.tglChaos.checked = false;
-      ui.tglPump.checked = false;
-      ui.tglReact.checked = Math.random() > 0.6;
-      ui.spin.value = '0.000';
+    { // seed 4 — dream flow
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false},
+      mouse: 'attract',
+      params: {damping:0.677, force:0.025, chaos:4.35, fade:0.921, scale:0.99, spin:0, ffield:1, deposit:3, grav:2, pressure:1.575, timeK:100, timeMin:0.1, charge:5, pump:0.017, particles:19, tempo:0.72, palette:4, vortex:0},
+    },
+    { // seed 5 — fire lattice
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.785, force:0.025, chaos:3.03, fade:0.921, scale:0.99, spin:0, ffield:1.0029, deposit:2, grav:2, pressure:0.478, timeK:100, timeMin:0.1, charge:10, pump:0.017, particles:20, tempo:0.74, palette:9, vortex:0.19, react:1},
+    },
+    { // seed 6 — react storm
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:true},
+      mouse: 'repel',
+      params: {damping:0.712, force:1.9216, chaos:2.12, fade:0.937, scale:0.81, spin:0, ffield:0.9698, deposit:12, grav:1.724, pressure:1.93, timeK:105.6, timeMin:0.0496, charge:4.41, pump:0.099, particles:19, tempo:0.49, palette:10, vortex:0.56, react:1.88},
+    },
+    { // seed 7 — dense collapse
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:true, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.677, force:0.9072, chaos:0.97, fade:0.675, scale:0.8, spin:0, ffield:0.4766, deposit:10, grav:1.905, pressure:1.93, timeK:41.2, timeMin:0.0042, charge:7.01, pump:0.172, particles:19, tempo:0.07, palette:4, vortex:0.95, react:1},
+    },
+    { // seed 8 — frost shimmer
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:true, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.677, force:0.0495, chaos:0.95, fade:0.968, scale:0.88, spin:0, ffield:0.9615, deposit:16, grav:1.905, pressure:1.93, timeK:49.5, timeMin:0.1733, charge:7.01, pump:0.099, particles:19, tempo:0.11, palette:3, vortex:0.51, react:1},
+    },
+    { // seed 9 — low field chaos
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:true, tglReact:true},
+      mouse: 'repel',
+      params: {damping:0.5, force:1.0969, chaos:1.86, fade:0.842, scale:0.65, spin:0, ffield:0.3523, deposit:3, grav:1, pressure:1.93, timeK:73.4, timeMin:0.0372, charge:5, pump:0.096, particles:18, tempo:0.11, palette:9, vortex:0, react:2.28},
+    },
+    { // seed 10 — no-kernel ghost
+      toggles: {tglKernel:false, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:true},
+      mouse: 'repel',
+      params: {damping:0.5, force:0.0577, chaos:3.88, fade:0.716, scale:0.39, spin:0, ffield:0.96, deposit:1, grav:0.2, pressure:0.031, timeK:78, timeMin:0.14, charge:0.3, pump:0.1, particles:19, tempo:1.25, palette:1, vortex:0, react:1},
+    },
+    { // seed 11 — digital aurora
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:true},
+      mouse: 'attract',
+      params: {damping:0.595, force:0.8495, chaos:4.45, fade:0.867, scale:0.65, spin:0, ffield:0.9822, deposit:3, grav:0.322, pressure:1.93, timeK:38, timeMin:0.05, charge:10, pump:0, particles:19, tempo:0.66, palette:8, vortex:0.85, react:1.3},
+    },
+    { // seed 12 — quiet dense
+      toggles: {tglKernel:true, tglField:true, tglExact:false, tglChaos:true, tglPump:false, tglReact:false},
+      mouse: 'attract',
+      params: {damping:0.5, force:0.6763, chaos:0, fade:0.805, scale:0.72, spin:0, ffield:0.929, deposit:28, grav:0.198, pressure:0.173, timeK:38, timeMin:0.0702, charge:8.08, pump:0.099, particles:18, tempo:0.09, palette:1, vortex:0.62, react:1},
     },
   ];
+
+  function demoApplySeed(seed){
+    // Apply toggles
+    for(const [k,v] of Object.entries(seed.toggles)){
+      if(ui[k]) ui[k].checked = v;
+    }
+    // Mouse mode
+    if(seed.mouse === 'repel' && ui.mouseRepel) ui.mouseRepel.checked = true;
+    else if(ui.mouseAttract) ui.mouseAttract.checked = true;
+    // Apply params
+    for(const [k,v] of Object.entries(seed.params)){
+      if(ui[k]) demoSet(ui[k], v);
+    }
+  }
+
+  function demoRandomize(){
+    // Generate random params (the old preset approach, but inline)
+    const style = Math.floor(Math.random() * 5);
+    const maxPal = parseInt(ui.palette.max) || 10;
+    ui.palette.value = String(demoRandInt(0, maxPal));
+
+    switch(style){
+      case 0: // flowing organic
+        demoSet(ui.pressure, demoRand(0.5, 3.0));
+        demoSet(ui.chaos, demoRand(0.5, 2.5));
+        demoSet(ui.damping, demoRand(0.3, 0.8));
+        demoSet(ui.force, demoRand(0.1, 0.6));
+        demoSet(ui.charge, demoRand(0, 6));
+        demoSet(ui.vortex, demoRand(-0.5, 0.5));
+        demoSet(ui.tempo, demoRand(0.5, 1.5));
+        demoSet(ui.fade, demoRand(0.4, 0.85));
+        demoSet(ui.grav, demoRand(0, 3));
+        demoSet(ui.ffield, demoRand(0.85, 0.98));
+        demoSet(ui.deposit, demoRandInt(1, 10));
+        ui.tglChaos.checked = true;
+        ui.tglPump.checked = Math.random() > 0.5;
+        ui.tglReact.checked = false;
+        ui.spin.value = (Math.random()>0.5 ? demoRand(-0.004,-0.001) : demoRand(0.001,0.004)).toFixed(3);
+        break;
+      case 1: // high energy vortex
+        demoSet(ui.pressure, demoRand(2.0, 5.0));
+        demoSet(ui.chaos, demoRand(1.5, 3.0));
+        demoSet(ui.damping, demoRand(0.2, 0.5));
+        demoSet(ui.force, demoRand(0.2, 0.8));
+        demoSet(ui.charge, demoRand(3, 10));
+        demoSet(ui.vortex, demoRand(0.3,2.0)*(Math.random()>0.5?1:-1));
+        demoSet(ui.tempo, demoRand(1.0, 2.5));
+        demoSet(ui.fade, demoRand(0.5, 0.75));
+        demoSet(ui.grav, demoRand(0, 5));
+        demoSet(ui.ffield, demoRand(0.88, 1.0));
+        demoSet(ui.deposit, demoRandInt(2, 15));
+        ui.tglChaos.checked = true;
+        ui.tglPump.checked = true;
+        ui.spin.value = demoRand(0.002, 0.008).toFixed(3);
+        break;
+      case 2: // calm ethereal
+        demoSet(ui.pressure, demoRand(0.1, 1.5));
+        demoSet(ui.chaos, demoRand(0.0, 1.0));
+        demoSet(ui.damping, demoRand(0.6, 0.95));
+        demoSet(ui.force, demoRand(0.05, 0.3));
+        demoSet(ui.charge, demoRand(0, 3));
+        demoSet(ui.vortex, demoRand(-0.2, 0.2));
+        demoSet(ui.tempo, demoRand(0.3, 0.8));
+        demoSet(ui.fade, demoRand(0.55, 0.92));
+        demoSet(ui.grav, demoRand(0, 2));
+        demoSet(ui.ffield, demoRand(0.90, 0.97));
+        demoSet(ui.deposit, demoRandInt(1, 5));
+        ui.tglChaos.checked = Math.random() > 0.3;
+        ui.tglPump.checked = false;
+        ui.spin.value = demoRand(-0.002, 0.002).toFixed(3);
+        break;
+      case 3: // plasma storm
+        demoSet(ui.pressure, demoRand(1.0, 4.0));
+        demoSet(ui.chaos, demoRand(2.0, 3.0));
+        demoSet(ui.damping, demoRand(0.1, 0.4));
+        demoSet(ui.force, demoRand(0.3, 1.0));
+        demoSet(ui.charge, demoRand(5, 10));
+        demoSet(ui.vortex, demoRand(-1.5, 1.5));
+        demoSet(ui.tempo, demoRand(1.5, 3.0));
+        demoSet(ui.fade, demoRand(0.3, 0.65));
+        demoSet(ui.grav, demoRand(1, 5));
+        demoSet(ui.ffield, demoRand(0.85, 0.96));
+        demoSet(ui.deposit, demoRandInt(5, 20));
+        ui.tglChaos.checked = true;
+        ui.tglPump.checked = true;
+        ui.spin.value = demoRand(0.003, 0.012).toFixed(3);
+        break;
+      case 4: // crystalline minimal
+        demoSet(ui.pressure, demoRand(0.5, 2.0));
+        demoSet(ui.chaos, demoRand(0.0, 0.5));
+        demoSet(ui.damping, demoRand(0.7, 0.9));
+        demoSet(ui.force, demoRand(0.1, 0.4));
+        demoSet(ui.charge, demoRand(0, 2));
+        demoSet(ui.vortex, 0);
+        demoSet(ui.tempo, demoRand(0.5, 1.0));
+        demoSet(ui.fade, demoRand(0.6, 0.85));
+        demoSet(ui.grav, demoRand(0, 1));
+        demoSet(ui.ffield, demoRand(0.92, 1.005));
+        demoSet(ui.deposit, demoRandInt(1, 4));
+        ui.tglChaos.checked = false;
+        ui.tglPump.checked = false;
+        ui.tglReact.checked = Math.random() > 0.6;
+        ui.spin.value = '0.000';
+        break;
+    }
+  }
 
   function demoTransition(){
     if(!demoActive) return;
     demoStep++;
 
-    // Change palette
-    const maxPal = parseInt(ui.palette.max) || 10;
-    ui.palette.value = String(demoRandInt(0, maxPal));
-
-    // Pick random preset and apply
-    const preset = DEMO_PRESETS[demoStep % DEMO_PRESETS.length];
-    preset();
-
-    // Sometimes reset particles for fresh start
-    if(Math.random() > 0.65){
-      reset();
+    // ~60% curated seeds, ~40% random exploration
+    if(Math.random() < 0.6){
+      // Pick a seed, shuffle order to avoid repeats
+      if(demoStep > 1 && demoStep % demoSeedOrder.length === 0){
+        for(let i = demoSeedOrder.length-1; i > 0; i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [demoSeedOrder[i],demoSeedOrder[j]] = [demoSeedOrder[j],demoSeedOrder[i]];
+        }
+      }
+      const idx = demoSeedOrder[demoStep % demoSeedOrder.length];
+      const seed = DEMO_SEEDS[idx];
+      demoApplySeed(seed);
+      // Add slight spin variation for visual interest
+      if(parseFloat(ui.spin.value) === 0 && Math.random() > 0.4){
+        ui.spin.value = (demoRand(-0.003, 0.003)).toFixed(3);
+      }
+    } else {
+      demoRandomize();
     }
+
+    // Always reset particles for clean transition
+    reset();
 
     demoLastChange = performance.now();
   }
@@ -4416,11 +4515,25 @@ function gameOver(){
     demoStep = 0;
     demoLastChange = performance.now();
 
+    // Shuffle seed order for variety
+    demoSeedOrder = DEMO_SEEDS.map((_,i)=>i);
+    for(let i = demoSeedOrder.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [demoSeedOrder[i], demoSeedOrder[j]] = [demoSeedOrder[j], demoSeedOrder[i]];
+    }
+
     // Enter fullscreen
     document.documentElement.requestFullscreen().catch(()=>{});
 
     // Hide all UI, show demo mode
     document.body.classList.add('demo-mode');
+
+    // Stop any running game and disable duality
+    if(game.running) gameStop();
+    if(game.dualOn){
+      game.dualOn = false;
+      if(gameUI.dualOn) gameUI.dualOn.checked = false;
+    }
 
     // Unpause
     paused = false;
