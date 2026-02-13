@@ -153,10 +153,34 @@
   .game-locked .invert-hud{ display:none !important; }
   .game-locked .audio-btn{
     display:block !important;
-    position:fixed; bottom:12px; right:12px; z-index:200;
+    position:fixed; bottom:12px; z-index:200;
   }
+  .game-locked #audioBtn{ right:12px; left:auto; }
+  .game-locked #fullscreenBtn{ right:52px; left:auto; }
   .game-locked .audio-btn.audio-hidden{ display:none !important; }
   .game-locked .top .t{ font-size:11px; }
+
+  /* Demo mode: only floating buttons visible */
+  .demo-mode .hud{ display:none !important; }
+  .demo-mode .panel{ display:none !important; }
+  .demo-mode .help-overlay{ display:none !important; }
+  .demo-mode .invert-hud{ display:none !important; }
+  .demo-mode .invert-btn{ display:none !important; }
+  .demo-mode .top{ display:none !important; }
+  .demo-mode .credit{ display:none !important; }
+  .demo-mode .twistj-link{ display:none !important; }
+  .demo-mode #gameLockedHud{ display:none !important; }
+  .demo-mode #gameOverlay{ display:none !important; }
+  .demo-mode .wrap{ height:100vh; }
+  .demo-mode .audio-btn{
+    display:block !important;
+    position:fixed; bottom:12px; z-index:200;
+    opacity:0.5; transition: opacity 0.3s;
+  }
+  .demo-mode .audio-btn:hover{ opacity:1; }
+  .demo-mode #audioBtn{ left:12px; right:auto; }
+  .demo-mode #fullscreenBtn{ left:52px; right:auto; }
+  .demo-mode.ui-hidden .audio-btn{ display:block !important; }
   .game-locked #gameLockedHud{
     display:flex !important;
     position:absolute; top:36px; left:50%;
@@ -234,6 +258,7 @@
         <button id="pause">PAUSE <small>(ESC)</small></button>
         <button id="share">SHARE <small>(C)</small></button>
         <button id="gameBtn">GAME</button>
+        <button id="demoBtn" style="color:#ff0;border-color:#553">DEMO</button>
       </div>
 
       <div id="slidersWrap">
@@ -566,6 +591,7 @@
     <a class="credit twistj-link" href="https://twistj.com" target="_blank" style="right:120px">twistj.com</a>
     <a class="credit" href="https://orcid.org/0009-0008-5463-278X" target="_blank">A. M. Thorn</a>
     <div class="audio-btn" id="audioBtn" title="Toggle audio">🔇</div>
+    <div class="audio-btn" id="fullscreenBtn" title="Fullscreen" style="left:52px">⛶</div>
   </div>
 
 <script>
@@ -4238,6 +4264,213 @@ function gameOver(){
     if (e.key === 'm' || e.key === 'M') {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       audioToggle();
+    }
+  });
+
+  // =========================
+  // FULLSCREEN
+  // =========================
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  function toggleFullscreen(){
+    if(document.fullscreenElement){
+      document.exitFullscreen().catch(()=>{});
+    } else {
+      document.documentElement.requestFullscreen().catch(()=>{});
+    }
+  }
+  fullscreenBtn.addEventListener('click', () => {
+    if(demoActive){
+      demoStop();
+    } else {
+      toggleFullscreen();
+    }
+  });
+
+  // =========================
+  // DEMO MODE
+  // =========================
+  let demoActive = false;
+  let demoTimer = null;
+  let demoStep = 0;
+  let demoSectionCount = 0;
+  let demoLastChange = 0;
+
+  function demoRand(lo, hi){ return lo + Math.random() * (hi - lo); }
+  function demoRandInt(lo, hi){ return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+  function demoSet(el, val){
+    if(!el) return;
+    const step = el.getAttribute('step') || '1';
+    const dec = step.includes('.') ? step.split('.')[1].length : 0;
+    el.value = Number(val).toFixed(dec);
+  }
+
+  const DEMO_PRESETS = [
+    // Each is a function that randomizes settings for visual variety
+    () => { // flowing organic
+      demoSet(ui.pressure, demoRand(0.5, 3.0));
+      demoSet(ui.chaos, demoRand(0.5, 2.5));
+      demoSet(ui.damping, demoRand(0.3, 0.8));
+      demoSet(ui.force, demoRand(0.1, 0.6));
+      demoSet(ui.charge, demoRand(0, 6));
+      demoSet(ui.vortex, demoRand(-0.5, 0.5));
+      demoSet(ui.tempo, demoRand(0.5, 1.5));
+      demoSet(ui.fade, demoRand(0.4, 0.85));
+      demoSet(ui.grav, demoRand(0, 3));
+      demoSet(ui.ffield, demoRand(0.85, 0.98));
+      demoSet(ui.deposit, demoRandInt(1, 10));
+      ui.tglChaos.checked = true;
+      ui.tglPump.checked = Math.random() > 0.5;
+      ui.tglReact.checked = false;
+      ui.spin.value = (Math.random() > 0.5 ? demoRand(-0.004, -0.001) : demoRand(0.001, 0.004)).toFixed(3);
+    },
+    () => { // high energy vortex
+      demoSet(ui.pressure, demoRand(2.0, 5.0));
+      demoSet(ui.chaos, demoRand(1.5, 3.0));
+      demoSet(ui.damping, demoRand(0.2, 0.5));
+      demoSet(ui.force, demoRand(0.2, 0.8));
+      demoSet(ui.charge, demoRand(3, 10));
+      demoSet(ui.vortex, demoRand(0.3, 2.0) * (Math.random()>0.5?1:-1));
+      demoSet(ui.tempo, demoRand(1.0, 2.5));
+      demoSet(ui.fade, demoRand(0.5, 0.75));
+      demoSet(ui.grav, demoRand(0, 5));
+      demoSet(ui.ffield, demoRand(0.88, 1.0));
+      demoSet(ui.deposit, demoRandInt(2, 15));
+      ui.tglChaos.checked = true;
+      ui.tglPump.checked = true;
+      ui.spin.value = demoRand(0.002, 0.008).toFixed(3);
+    },
+    () => { // calm ethereal
+      demoSet(ui.pressure, demoRand(0.1, 1.5));
+      demoSet(ui.chaos, demoRand(0.0, 1.0));
+      demoSet(ui.damping, demoRand(0.6, 0.95));
+      demoSet(ui.force, demoRand(0.05, 0.3));
+      demoSet(ui.charge, demoRand(0, 3));
+      demoSet(ui.vortex, demoRand(-0.2, 0.2));
+      demoSet(ui.tempo, demoRand(0.3, 0.8));
+      demoSet(ui.fade, demoRand(0.55, 0.92));
+      demoSet(ui.grav, demoRand(0, 2));
+      demoSet(ui.ffield, demoRand(0.90, 0.97));
+      demoSet(ui.deposit, demoRandInt(1, 5));
+      ui.tglChaos.checked = Math.random() > 0.3;
+      ui.tglPump.checked = false;
+      ui.spin.value = demoRand(-0.002, 0.002).toFixed(3);
+    },
+    () => { // plasma storm
+      demoSet(ui.pressure, demoRand(1.0, 4.0));
+      demoSet(ui.chaos, demoRand(2.0, 3.0));
+      demoSet(ui.damping, demoRand(0.1, 0.4));
+      demoSet(ui.force, demoRand(0.3, 1.0));
+      demoSet(ui.charge, demoRand(5, 10));
+      demoSet(ui.vortex, demoRand(-1.5, 1.5));
+      demoSet(ui.tempo, demoRand(1.5, 3.0));
+      demoSet(ui.fade, demoRand(0.3, 0.65));
+      demoSet(ui.grav, demoRand(1, 5));
+      demoSet(ui.ffield, demoRand(0.85, 0.96));
+      demoSet(ui.deposit, demoRandInt(5, 20));
+      ui.tglChaos.checked = true;
+      ui.tglPump.checked = true;
+      ui.spin.value = demoRand(0.003, 0.012).toFixed(3);
+    },
+    () => { // crystalline minimal
+      demoSet(ui.pressure, demoRand(0.5, 2.0));
+      demoSet(ui.chaos, demoRand(0.0, 0.5));
+      demoSet(ui.damping, demoRand(0.7, 0.9));
+      demoSet(ui.force, demoRand(0.1, 0.4));
+      demoSet(ui.charge, demoRand(0, 2));
+      demoSet(ui.vortex, 0);
+      demoSet(ui.tempo, demoRand(0.5, 1.0));
+      demoSet(ui.fade, demoRand(0.6, 0.85));
+      demoSet(ui.grav, demoRand(0, 1));
+      demoSet(ui.ffield, demoRand(0.92, 1.005));
+      demoSet(ui.deposit, demoRandInt(1, 4));
+      ui.tglChaos.checked = false;
+      ui.tglPump.checked = false;
+      ui.tglReact.checked = Math.random() > 0.6;
+      ui.spin.value = '0.000';
+    },
+  ];
+
+  function demoTransition(){
+    if(!demoActive) return;
+    demoStep++;
+
+    // Change palette
+    const maxPal = parseInt(ui.palette.max) || 10;
+    ui.palette.value = String(demoRandInt(0, maxPal));
+
+    // Pick random preset and apply
+    const preset = DEMO_PRESETS[demoStep % DEMO_PRESETS.length];
+    preset();
+
+    // Sometimes reset particles for fresh start
+    if(Math.random() > 0.65){
+      reset();
+    }
+
+    demoLastChange = performance.now();
+  }
+
+  function demoStart(){
+    if(demoActive) return;
+    demoActive = true;
+    demoStep = 0;
+    demoLastChange = performance.now();
+
+    // Enter fullscreen
+    document.documentElement.requestFullscreen().catch(()=>{});
+
+    // Hide all UI, show demo mode
+    document.body.classList.add('demo-mode');
+
+    // Unpause
+    paused = false;
+
+    // Start audio if not playing
+    if(audioMuted) audioToggle();
+
+    // Apply first transition
+    demoTransition();
+
+    // Listen for section changes from audio engine
+    demoSectionCount = 0;
+    audioEngine.on('section', demoOnSection);
+
+    fullscreenBtn.textContent = '✕';
+    fullscreenBtn.title = 'Exit demo';
+  }
+
+  function demoOnSection(){
+    if(!demoActive) return;
+    demoSectionCount++;
+    const elapsed = (performance.now() - demoLastChange) / 1000;
+    // Transition at section boundaries, but only after ~18-25s
+    if(elapsed > 18 + Math.random() * 7){
+      demoTransition();
+    }
+  }
+
+  function demoStop(){
+    if(!demoActive) return;
+    demoActive = false;
+    audioEngine._listeners['section'] = (audioEngine._listeners['section']||[]).filter(fn => fn !== demoOnSection);
+
+    document.body.classList.remove('demo-mode');
+
+    // Exit fullscreen
+    if(document.fullscreenElement){
+      document.exitFullscreen().catch(()=>{});
+    }
+
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.title = 'Fullscreen';
+  }
+
+  document.getElementById('demoBtn').addEventListener('click', demoStart);
+
+  // Also exit demo on ESC (fullscreen exit)
+  document.addEventListener('fullscreenchange', () => {
+    if(!document.fullscreenElement && demoActive){
+      demoStop();
     }
   });
 
