@@ -151,7 +151,11 @@
   .game-locked .panel{ display:none !important; }
   .game-locked .help-overlay{ display:none !important; }
   .game-locked .invert-hud{ display:none !important; }
-  .game-locked .audio-btn{ display:none !important; }
+  .game-locked .audio-btn{
+    display:block !important;
+    position:fixed; bottom:12px; right:12px; z-index:200;
+  }
+  .game-locked .audio-btn.audio-hidden{ display:none !important; }
   .game-locked .top .t{ font-size:11px; }
   .game-locked #gameLockedHud{
     display:flex !important;
@@ -362,7 +366,7 @@
       </div>
       <div class="row" id="rowGameCoverage">
         <label>COVERAGE</label>
-        <input id="gameCoverage" type="range" min="0.001" max="0.200" step="0.001" value="0.020" />
+        <input id="gameCoverage" type="range" min="0.001" max="0.800" step="0.005" value="0.100" />
       </div>
       <div class="row" id="rowGameGrace">
         <label>GRACE <small>(s)</small></label>
@@ -896,10 +900,10 @@ return TwistJC;
     cx: 0, cy: 0,
     half: 0.18,
     threshold: 0.030,
-    coverageMax: 0.020,
+    coverageMax: 0.100,
     grace: 0.7,
-    winArea: false,
-    winPresence: true,
+    winArea: true,
+    winPresence: false,
     winHold: 0,
     blueHold: 0,
     tDanger: 0,
@@ -1270,6 +1274,7 @@ return TwistJC;
   layout(location=1) out vec4 o_k0;
   layout(location=2) out vec4 o_k1;
   uniform uint u_seed;
+  uniform int u_dualOn;
 
   uint hash(uint x){
     x ^= x >> 16u;
@@ -1305,7 +1310,7 @@ return TwistJC;
     int q   = int(k1 % 5u);
     int ts  = int((k1/5u) % 5u);
 
-    // Duality per-particle state (always initialized; used only when DUALITY is enabled)
+    // Duality per-particle state — random 50/50, cohesion separates naturally
     float sp = float(k1 & 1u); // 0=BLUE, 1=PINK
     uint k2 = hash(k1 + 17u);
     float pw = 0.6 + float(k2 & 0xFFFFu) / 65535.0 * 0.4;
@@ -2555,7 +2560,7 @@ float accLen = length(acc);
   // =========================
   // Uniforms (cache)
   // =========================
-  const uInit = { seed: U(progInit, 'u_seed') };
+  const uInit = { seed: U(progInit, 'u_seed'), dualOn: U(progInit, 'u_dualOn') };
 
   const uPhys = {
     state: U(progPhys,'u_state'), k0: U(progPhys,'u_k0'), k1: U(progPhys,'u_k1'),
@@ -2906,6 +2911,7 @@ float accLen = length(acc);
     gl.viewport(0,0,TEX_SIZE,TEX_SIZE);
     gl.useProgram(progInit);
     gl.uniform1ui(uInit.seed, seed);
+    gl.uniform1i(uInit.dualOn, game.dualOn ? 1 : 0);
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -2931,6 +2937,7 @@ float accLen = length(acc);
     gl.viewport(0,0,TEX_SIZE,TEX_SIZE);
     gl.useProgram(progInit);
     gl.uniform1ui(uInit.seed, seed);
+    gl.uniform1i(uInit.dualOn, game.dualOn ? 1 : 0);
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     // Ensure init pass is complete before game logic starts reading counts.
@@ -3258,6 +3265,10 @@ function gameOver(){
     const dt = lastCheckT > 0 ? (now - lastCheckT) / 1000 : 0.016;
     lastCheckT = now;
 
+    // Warmup: don't check win/lose for first 3 seconds (let field build up)
+    const WARMUP = 3.0;
+    const warming = (game.time < WARMUP);
+
     // In DUALITY mode: zone checks ENEMY only, lose checks FRIENDLY across whole sim
     if(game.dualOn){
       const pink = gameSampleField(2);  // field-based: zone ENEMY density
@@ -3296,8 +3307,8 @@ function gameOver(){
         blueHold: game.blueHold,
       };
 
-      // Lose condition: no FRIENDLY left anywhere
-      if(!blueAny){
+      // Lose condition: no FRIENDLY left anywhere (skip during warmup)
+      if(!blueAny && !warming){
         game.blueHold += dt;
         // slow down win progress but don't hard reset (counter noise protection)
         game.winHold = Math.max(0, game.winHold - dt * 0.5);
@@ -3340,6 +3351,18 @@ function gameOver(){
       let ok = true;
       if(game.winArea) ok = ok && (pinkFill <= game.coverageMax);
       if(game.winPresence) ok = ok && (!pinkPresent) && (!pinkTotal_gpu);
+
+      // During warmup: show HUD but don't advance win/lose timers
+      if(warming){
+        const left = (WARMUP - game.time).toFixed(1);
+        gameUI.status.textContent = `WARMUP ${left}s`;
+        gameUI.status.style.color = '#ff0';
+        if(game.locked){
+          glStatus.textContent = `WARMUP ${left}s`;
+          glStatus.style.color = '#ff0';
+        }
+        return;
+      }
 
       // LOSE condition: enemy area way above threshold for grace period
       let losing = false;
@@ -3407,6 +3430,14 @@ function gameOver(){
     }
     gameUI.fill.textContent = pct + '%';
     if(game.locked) glFill.textContent = pct + '%';
+
+    // During warmup: show HUD but don't check violations
+    if(warming){
+      const left = (WARMUP - game.time).toFixed(1);
+      gameUI.fill.style.color = '#ff0';
+      if(game.locked) glFill.style.color = '#ff0';
+      return;
+    }
 
     let violated = false;
     if(game.winArea){
@@ -3621,6 +3652,11 @@ function gameOver(){
         break;
       case 'u': case 'U':
         document.body.classList.toggle('ui-hidden');
+        // In locked game, also toggle audio button visibility
+        if(game.locked){
+          const ab = document.getElementById('audioBtn');
+          if(ab) ab.classList.toggle('audio-hidden');
+        }
         needLayout = true;
         break;
       case 'Tab':
