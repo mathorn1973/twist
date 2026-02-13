@@ -399,6 +399,10 @@
         <label>COLORS <small id="colorLabel">BLUE / PINK</small></label>
         <input id="gameColors" type="range" min="0" max="4" step="1" value="0" />
       </div>
+      <div class="row stack" id="rowGameInitBalance">
+        <label>INIT BALANCE <small>friendly:enemy</small></label>
+        <input id="gameInitBalance" type="range" min="0.10" max="0.90" step="0.01" value="0.50" />
+      </div>
       <div class="row stack" id="rowGameDualRate">
         <label>EAT RATE</label>
         <input id="gameDualRate" type="range" min="0.00" max="10.00" step="0.1" value="2.00" />
@@ -864,6 +868,7 @@ return TwistJC;
     dualRate:     document.getElementById('gameDualRate'),
     dualEq:       document.getElementById('gameDualEq'),
     dualCoh:      document.getElementById('gameDualCoh'),
+    initBalance:  document.getElementById('gameInitBalance'),
     powerEats:    document.getElementById('gamePowerEats'),
     energyTransfer: document.getElementById('gameEnergyTransfer'),
     colors:       document.getElementById('gameColors'),
@@ -916,6 +921,7 @@ return TwistJC;
     dualRate: 2.00,
     dualEq: 0.00,
     dualCoh: 1.20,
+    initBalance: 0.50,
     reinfBlue: 1.00,
     reinfPink: 1.00,
     reinfFlow: 0.00,
@@ -966,6 +972,7 @@ return TwistJC;
     game.dualRate = gameUI.dualRate ? parseFloat(gameUI.dualRate.value) : 1.0;
     game.dualEq = gameUI.dualEq ? parseFloat(gameUI.dualEq.value) : 0.00;
     game.dualCoh = gameUI.dualCoh ? parseFloat(gameUI.dualCoh.value) : 0.0;
+    game.initBalance = gameUI.initBalance ? parseFloat(gameUI.initBalance.value) : 0.5;
     game.reinfBlue = gameUI.reinfBlue ? parseFloat(gameUI.reinfBlue.value) : 1.0;
     game.reinfPink = gameUI.reinfPink ? parseFloat(gameUI.reinfPink.value) : 1.0;
     game.reinfFlow = gameUI.reinfFlow ? parseFloat(gameUI.reinfFlow.value) : 0.0;
@@ -1030,6 +1037,7 @@ return TwistJC;
       parts.push('gD' + gameUI.dualRate.value);
       if(gameUI.dualEq) parts.push('gE' + gameUI.dualEq.value);
       if(gameUI.dualCoh) parts.push('gA' + gameUI.dualCoh.value);
+      if(gameUI.initBalance && parseFloat(gameUI.initBalance.value) !== 0.5) parts.push('gB' + gameUI.initBalance.value);
       if(gameUI.colors && parseInt(gameUI.colors.value) > 0) parts.push('gCo' + gameUI.colors.value);
     }
     // preserve VRAM budget if non-default
@@ -1100,7 +1108,7 @@ return TwistJC;
 
       if(p.startsWith('gW')){ if(gameUI.winArea) gameUI.winArea.checked = p[2] === '1'; if(gameUI.winPresence) gameUI.winPresence.checked = (p.length > 3 ? p[3] === '1' : false); continue; }
       if(p.startsWith('gd')){ if(gameUI.dualOn) gameUI.dualOn.checked = p[2] === '1'; continue; }
-      const gMap = {gx:'x', gy:'y', gh:'size', gt:'thresh', gC:'coverage', gg:'grace', gD:'dualRate', gE:'dualEq', gA:'dualCoh'};
+      const gMap = {gx:'x', gy:'y', gh:'size', gt:'thresh', gC:'coverage', gg:'grace', gD:'dualRate', gE:'dualEq', gA:'dualCoh', gB:'initBalance'};
       const gk2 = p.substring(0,2);
       if(gMap[gk2] && gameUI[gMap[gk2]]){
         const v = parseFloat(p.substring(2));
@@ -1275,6 +1283,7 @@ return TwistJC;
   layout(location=2) out vec4 o_k1;
   uniform uint u_seed;
   uniform int u_dualOn;
+  uniform float u_initBalance; // 0=all PINK, 0.5=equal, 1=all BLUE
 
   uint hash(uint x){
     x ^= x >> 16u;
@@ -1310,8 +1319,18 @@ return TwistJC;
     int q   = int(k1 % 5u);
     int ts  = int((k1/5u) % 5u);
 
-    // Duality per-particle state — random 50/50, cohesion separates naturally
-    float sp = float(k1 & 1u); // 0=BLUE, 1=PINK
+    // Duality per-particle state
+    float sp;
+    if(u_dualOn == 1){
+      // Angle-based separation with balance control
+      // u_initBalance: 0.5=equal, >0.5=more BLUE, <0.5=more PINK
+      // Shift the boundary: balance=0.7 means 70% BLUE → threshold moves down
+      float noise = (float(h3 & 0xFFFFu) / 65535.0 - 0.5) * 0.8;
+      float thresh = (1.0 - u_initBalance * 2.0); // bal=0.5→0, bal=0.1→0.8, bal=0.9→-0.8
+      sp = (sin(a) + noise > thresh) ? 0.0 : 1.0;
+    } else {
+      sp = float(k1 & 1u);
+    }
     uint k2 = hash(k1 + 17u);
     float pw = 0.6 + float(k2 & 0xFFFFu) / 65535.0 * 0.4;
 
@@ -2053,6 +2072,16 @@ if(u_reactOn == 1 && u_dualOn == 0){
 
       float coh = u_dualCoh;
 
+      // Suppress cohesion near mouse (let player control particles)
+      if(u_mouseOn == 1 && u_mouseDown > 0.5){
+        float md2 = dot(pos - u_mouse, pos - u_mouse);
+        float mouseR = 0.8; // suppression radius
+        if(md2 < mouseR * mouseR){
+          float prox = 1.0 - sqrt(md2) / mouseR;
+          coh *= (1.0 - prox * 0.92); // up to 92% reduction near cursor
+        }
+      }
+
       // stronger particles cohere more; weak ones drift
       float p = 0.25 + 0.75 * pw;
       acc += gradSep * coh * p;
@@ -2067,8 +2096,10 @@ if(u_reactOn == 1 && u_dualOn == 0){
     if(u_mouseOn == 1 && u_mouseDown > 0.5 && (u_dualOn == 0 || sp < 0.5)){
       vec2 md = pos - u_mouse;
       float d2 = dot(md, md) + 0.002;
-      if(d2 < 0.6){
-        acc += normalize(md) * (0.06 / d2) * u_mouseSign;
+      float mRad = (u_dualOn == 1) ? 1.2 : 0.6; // wider reach in duality
+      if(d2 < mRad){
+        float mforce = (u_dualOn == 1) ? 0.15 : 0.06; // 2.5× stronger in duality
+        acc += normalize(md) * (mforce / d2) * u_mouseSign;
       }
     }
 
@@ -2560,7 +2591,7 @@ float accLen = length(acc);
   // =========================
   // Uniforms (cache)
   // =========================
-  const uInit = { seed: U(progInit, 'u_seed'), dualOn: U(progInit, 'u_dualOn') };
+  const uInit = { seed: U(progInit, 'u_seed'), dualOn: U(progInit, 'u_dualOn'), initBalance: U(progInit, 'u_initBalance') };
 
   const uPhys = {
     state: U(progPhys,'u_state'), k0: U(progPhys,'u_k0'), k1: U(progPhys,'u_k1'),
@@ -2912,6 +2943,7 @@ float accLen = length(acc);
     gl.useProgram(progInit);
     gl.uniform1ui(uInit.seed, seed);
     gl.uniform1i(uInit.dualOn, game.dualOn ? 1 : 0);
+    gl.uniform1f(uInit.initBalance, game.initBalance);
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -2938,6 +2970,7 @@ float accLen = length(acc);
     gl.useProgram(progInit);
     gl.uniform1ui(uInit.seed, seed);
     gl.uniform1i(uInit.dualOn, game.dualOn ? 1 : 0);
+    gl.uniform1f(uInit.initBalance, game.initBalance);
     gl.bindVertexArray(vaoQuad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     // Ensure init pass is complete before game logic starts reading counts.
@@ -3012,6 +3045,7 @@ float accLen = length(acc);
     if(gameUI.dualRate) gameUI.dualRate.disabled = locked;
     if(gameUI.dualEq) gameUI.dualEq.disabled = locked;
     if(gameUI.dualCoh) gameUI.dualCoh.disabled = locked;
+    if(gameUI.initBalance) gameUI.initBalance.disabled = locked;
     gameUI.start.disabled = locked;
     gameUI.stop.disabled = !locked;
   }
@@ -3491,7 +3525,7 @@ function gameOver(){
   [gameUI.modeEmpty, gameUI.modeNotEmpty, gameUI.x, gameUI.y, gameUI.size,
    gameUI.thresh, gameUI.coverage, gameUI.grace,
    gameUI.winArea, gameUI.winPresence,
-   gameUI.dualRate, gameUI.dualEq, gameUI.dualCoh,
+   gameUI.dualRate, gameUI.dualEq, gameUI.dualCoh, gameUI.initBalance,
    gameUI.reinfFlow, gameUI.reinfBlue, gameUI.reinfPink, gameUI.colors].filter(Boolean).forEach(el => {
     el.addEventListener('input', gameReadUI);
   });
@@ -3588,6 +3622,7 @@ function gameOver(){
       parts.push('gD' + gameUI.dualRate.value);
       if(gameUI.dualEq) parts.push('gE' + gameUI.dualEq.value);
       if(gameUI.dualCoh) parts.push('gA' + gameUI.dualCoh.value);
+      if(gameUI.initBalance && parseFloat(gameUI.initBalance.value) !== 0.5) parts.push('gB' + gameUI.initBalance.value);
       if(gameUI.colors && parseInt(gameUI.colors.value) > 0) parts.push('gCo' + gameUI.colors.value);
     }
     parts.push('gL1');
@@ -4346,9 +4381,7 @@ function gameOver(){
       padT     *= 1.0 + dominance * 0.5;
       pulseT   *= 1.0 + eatRate * 0.08;
 
-      // Eating intensity boosts tempo AND volume
-      const eatMul = 1.0 + eatRate * 0.05;
-      audioSmooth.tempo     *= eatMul;
+      // Eating intensity boosts volume (NOT tempo — that was causing compounding bug)
       audioSmooth.masterVol  = Math.min(1.0, audioSmooth.masterVol * (1.0 + eatRate * 0.03));
 
       regTarget = Math.max(1, Math.min(4, Math.round(sty.registerBase + (1.0 - dominance) * 1.5)));
